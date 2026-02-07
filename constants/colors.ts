@@ -1,12 +1,43 @@
-// template
-const tintColorLight = "#2f95dc";
-
-export default {
+const Colors = {
+  dark: {
+    background: '#0A0A0F',
+    surface: '#141420',
+    surfaceElevated: '#1C1C2E',
+    surfaceBorder: '#2A2A3C',
+    primary: '#00D4AA',
+    primaryDim: 'rgba(0, 212, 170, 0.15)',
+    accent: '#00E5BB',
+    text: '#FFFFFF',
+    textSecondary: '#8E8EA0',
+    textTertiary: '#5C5C6E',
+    tint: '#00D4AA',
+    tabIconDefault: '#5C5C6E',
+    tabIconSelected: '#00D4AA',
+    error: '#FF4757',
+    errorDim: 'rgba(255, 71, 87, 0.15)',
+    warning: '#FFB020',
+    warningDim: 'rgba(255, 176, 32, 0.15)',
+    success: '#10B981',
+    successDim: 'rgba(16, 185, 129, 0.15)',
+    info: '#3B82F6',
+    infoDim: 'rgba(59, 130, 246, 0.15)',
+    purple: '#8B5CF6',
+    purpleDim: 'rgba(139, 92, 246, 0.15)',
+  },
+  status: {
+    NEW: { color: '#FFB020', bg: 'rgba(255, 176, 32, 0.15)' },
+    ACCEPTED: { color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
+    IN_WASH: { color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+    READY: { color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+    REJECTED: { color: '#FF4757', bg: 'rgba(255, 71, 87, 0.15)' },
+  },
   light: {
-    text: "#000",
-    background: "#fff",
-    tint: tintColorLight,
-    tabIconDefault: "#ccc",
-    tabIconSelected: tintColorLight,
+    text: '#000',
+    background: '#fff',
+    tint: '#00D4AA',
+    tabIconDefault: '#ccc',
+    tabIconSelected: '#00D4AA',
   },
 };
+
+export default Colors;
