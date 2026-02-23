@@ -20,6 +20,7 @@ const STATUS_FILTERS: { label: string; value: OrderStatus | 'ALL' }[] = [
   { label: 'Accepted', value: 'ACCEPTED' },
   { label: 'In Wash', value: 'IN_WASH' },
   { label: 'Ready', value: 'READY' },
+  { label: 'Delivered', value: 'DELIVERED' },
 ];
 
 function FilterChip({ label, active, onPress, count }: { label: string; active: boolean; onPress: () => void; count?: number }) {
@@ -68,7 +69,10 @@ function OrderCard({ order }: { order: Order }) {
     ACCEPTED: { color: Colors.status.ACCEPTED.color, bg: Colors.status.ACCEPTED.bg, icon: 'checkmark-circle' },
     IN_WASH: { color: Colors.status.IN_WASH.color, bg: Colors.status.IN_WASH.bg, icon: 'water' },
     READY: { color: Colors.status.READY.color, bg: Colors.status.READY.bg, icon: 'checkmark-done-circle' },
+    OUT_FOR_DELIVERY: { color: Colors.status.OUT_FOR_DELIVERY.color, bg: Colors.status.OUT_FOR_DELIVERY.bg, icon: 'bicycle' },
+    DELIVERED: { color: Colors.status.DELIVERED.color, bg: Colors.status.DELIVERED.bg, icon: 'bag-check' },
     REJECTED: { color: Colors.status.REJECTED.color, bg: Colors.status.REJECTED.bg, icon: 'close-circle' },
+    CANCELLED: { color: Colors.status.CANCELLED.color, bg: Colors.status.CANCELLED.bg, icon: 'ban' },
   };
   const config = statusConfig[order.status];
 

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Saaf Owner",
-    "slug": "saaf-owner",
+    "name": "Rinzo Owner",
+    "slug": "rinzo-owner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "saafowner",
+    "scheme": "rinzoowner",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.saafowner"
+      "bundleIdentifier": "com.rinzo.owner"
     },
     "android": {
-      "package": "com.saafowner",
+      "package": "com.rinzo.owner",
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -33,11 +33,12 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://rinzo.app"
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

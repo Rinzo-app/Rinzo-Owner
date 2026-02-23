@@ -19,7 +19,7 @@ import { useAuth } from '@/lib/auth-context';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, error, clearError, isLoading, isConfigured, skipAuth } = useAuth();
+  const { signIn, error, clearError, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +58,7 @@ export default function LoginScreen() {
           >
             <Ionicons name="water" size={40} color={Colors.dark.primary} />
           </LinearGradient>
-          <Text style={styles.brandName}>Saaf</Text>
+          <Text style={styles.brandName}>Rinzo</Text>
           <Text style={styles.brandTagline}>Shop Owner Portal</Text>
         </View>
 
@@ -124,18 +124,6 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.footerSection}>
-          {!isConfigured && (
-            <Pressable
-              style={({ pressed }) => [styles.previewBtn, pressed && { opacity: 0.8 }]}
-              onPress={() => {
-                skipAuth();
-                router.replace('/(tabs)');
-              }}
-            >
-              <Ionicons name="eye-outline" size={18} color={Colors.dark.primary} />
-              <Text style={styles.previewText}>Preview without login</Text>
-            </Pressable>
-          )}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>SHOP OWNER ACCESS ONLY</Text>
@@ -256,22 +244,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.dark.textTertiary,
     letterSpacing: 1.5,
-  },
-  previewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: Colors.dark.primaryDim,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 212, 170, 0.2)',
-    marginBottom: 20,
-  },
-  previewText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 15,
-    color: Colors.dark.primary,
   },
 });

@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
+import React, { createContext, useContext, useMemo, useCallback, ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  fetchShopOrders,
+  fetchShopServices,
+  createShopService,
+  updateShopService,
+  deleteShopService,
+  fetchShopSettings,
+  patchShopSettings,
+} from './api';
 
-export type OrderStatus = 'NEW' | 'ACCEPTED' | 'IN_WASH' | 'READY' | 'REJECTED';
+export type OrderStatus = 'NEW' | 'ACCEPTED' | 'IN_WASH' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'REJECTED' | 'CANCELLED';
 
 export interface OrderItem {
   serviceName: string;
@@ -44,8 +52,6 @@ interface ShopContextValue {
   activeOrderCount: number;
   capacityPercent: number;
   isAtCapacity: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Order | null>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   addService: (service: Omit<Service, 'id'>) => Promise<void>;
   updateService: (service: Service) => Promise<void>;
   deleteService: (serviceId: string) => Promise<void>;
@@ -54,97 +60,58 @@ interface ShopContextValue {
   refreshData: () => Promise<void>;
 }
 
-const ORDERS_KEY = '@saaf_orders';
-const SERVICES_KEY = '@saaf_services';
-const SETTINGS_KEY = '@saaf_settings';
-
 const DEFAULT_SETTINGS: ShopSettings = {
-  shopName: 'Saaf Laundry',
+  shopName: 'Rinzo Laundry',
   isOpen: true,
   dailyCapacity: 20,
   autoReject: false,
 };
 
-const DEFAULT_SERVICES: Service[] = [
-  { id: '1', name: 'Wash & Fold', price: 50, unit: 'per kg', active: true },
-  { id: '2', name: 'Dry Clean', price: 150, unit: 'per piece', active: true },
-  { id: '3', name: 'Iron Only', price: 20, unit: 'per piece', active: true },
-  { id: '4', name: 'Stain Removal', price: 100, unit: 'per piece', active: true },
-];
-
 const ShopContext = createContext<ShopContextValue | null>(null);
 
-function generateSampleOrders(): Order[] {
-  const names = ['Rahul Sharma', 'Priya Patel', 'Amit Kumar', 'Sneha Gupta', 'Vikram Singh'];
-  const phones = ['9876543210', '9876543211', '9876543212', '9876543213', '9876543214'];
-  const statuses: OrderStatus[] = ['NEW', 'NEW', 'ACCEPTED', 'IN_WASH', 'READY'];
-
-  return names.map((name, i) => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - (i * 30));
-    return {
-      id: `order_${i + 1}`,
-      customerName: name,
-      customerPhone: phones[i],
-      items: [
-        { serviceName: 'Wash & Fold', quantity: i + 2, price: 50 },
-        ...(i % 2 === 0 ? [{ serviceName: 'Iron Only', quantity: 3, price: 20 }] : []),
-      ],
-      totalAmount: (i + 2) * 50 + (i % 2 === 0 ? 60 : 0),
-      status: statuses[i],
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      notes: i === 0 ? 'Please handle with care' : undefined,
-    };
-  });
-}
-
 export function ShopProvider({ children }: { children: ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [services, setServices] = useState<Service[]>(DEFAULT_SERVICES);
-  const [settings, setSettings] = useState<ShopSettings>(DEFAULT_SETTINGS);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const loadData = useCallback(async () => {
-    try {
-      const [ordersData, servicesData, settingsData] = await Promise.all([
-        AsyncStorage.getItem(ORDERS_KEY),
-        AsyncStorage.getItem(SERVICES_KEY),
-        AsyncStorage.getItem(SETTINGS_KEY),
-      ]);
+  // ── Orders from backend via react-query ──
+  const { data: orders = [], isLoading: ordersLoading, refetch: refetchOrders } = useQuery<Order[]>({
+    queryKey: ['shop-orders'],
+    queryFn: fetchShopOrders,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
-      if (ordersData) {
-        setOrders(JSON.parse(ordersData));
-      } else {
-        const sampleOrders = generateSampleOrders();
-        setOrders(sampleOrders);
-        await AsyncStorage.setItem(ORDERS_KEY, JSON.stringify(sampleOrders));
-      }
+  // ── Services from backend via react-query ──
+  const {
+    data: services = [],
+    isLoading: servicesLoading,
+    refetch: refetchServices,
+  } = useQuery<Service[]>({
+    queryKey: ['shop-services'],
+    queryFn: fetchShopServices,
+    staleTime: 60_000,
+  });
 
-      if (servicesData) {
-        setServices(JSON.parse(servicesData));
-      } else {
-        await AsyncStorage.setItem(SERVICES_KEY, JSON.stringify(DEFAULT_SERVICES));
-      }
+  // ── Settings from backend via react-query ──
+  const {
+    data: settings = DEFAULT_SETTINGS,
+    isLoading: settingsLoading,
+    refetch: refetchSettings,
+  } = useQuery<ShopSettings>({
+    queryKey: ['shop-settings'],
+    queryFn: fetchShopSettings,
+    staleTime: 60_000,
+  });
 
-      if (settingsData) {
-        setSettings(JSON.parse(settingsData));
-      } else {
-        await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
-      }
-    } catch (err) {
-      console.error('Failed to load shop data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const isLoading = ordersLoading || servicesLoading || settingsLoading;
 
   const activeOrderCount = useMemo(() =>
-    orders.filter(o => o.status !== 'READY' && o.status !== 'REJECTED').length,
+    orders.filter(o =>
+      o.status !== 'READY' &&
+      o.status !== 'OUT_FOR_DELIVERY' &&
+      o.status !== 'DELIVERED' &&
+      o.status !== 'REJECTED' &&
+      o.status !== 'CANCELLED'
+    ).length,
     [orders]
   );
 
@@ -158,60 +125,29 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     [activeOrderCount, settings.dailyCapacity]
   );
 
-  const addOrder = useCallback(async (orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order | null> => {
-    if (isAtCapacity && settings.autoReject) {
-      return null;
-    }
-
-    const now = new Date().toISOString();
-    const newOrder: Order = {
-      ...orderData,
-      id: `order_${Crypto.randomUUID()}`,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const updated = [newOrder, ...orders];
-    setOrders(updated);
-    await AsyncStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
-    return newOrder;
-  }, [orders, isAtCapacity, settings.autoReject]);
-
-  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
-    const updated = orders.map(o =>
-      o.id === orderId ? { ...o, status, updatedAt: new Date().toISOString() } : o
-    );
-    setOrders(updated);
-    await AsyncStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
-  }, [orders]);
-
   const addService = useCallback(async (serviceData: Omit<Service, 'id'>) => {
-    const newService: Service = {
-      ...serviceData,
-      id: Crypto.randomUUID(),
-    };
-    const updated = [...services, newService];
-    setServices(updated);
-    await AsyncStorage.setItem(SERVICES_KEY, JSON.stringify(updated));
-  }, [services]);
+    await createShopService(serviceData);
+    queryClient.invalidateQueries({ queryKey: ['shop-services'] });
+  }, [queryClient]);
 
   const updateService = useCallback(async (service: Service) => {
-    const updated = services.map(s => s.id === service.id ? service : s);
-    setServices(updated);
-    await AsyncStorage.setItem(SERVICES_KEY, JSON.stringify(updated));
-  }, [services]);
+    await updateShopService(service);
+    queryClient.invalidateQueries({ queryKey: ['shop-services'] });
+  }, [queryClient]);
 
   const deleteService = useCallback(async (serviceId: string) => {
-    const updated = services.filter(s => s.id !== serviceId);
-    setServices(updated);
-    await AsyncStorage.setItem(SERVICES_KEY, JSON.stringify(updated));
-  }, [services]);
+    await deleteShopService(serviceId);
+    queryClient.invalidateQueries({ queryKey: ['shop-services'] });
+  }, [queryClient]);
 
   const updateSettings = useCallback(async (partial: Partial<ShopSettings>) => {
-    const updated = { ...settings, ...partial };
-    setSettings(updated);
-    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
-  }, [settings]);
+    await patchShopSettings(partial);
+    queryClient.invalidateQueries({ queryKey: ['shop-settings'] });
+  }, [queryClient]);
+
+  const refreshData = useCallback(async () => {
+    await Promise.all([refetchOrders(), refetchServices(), refetchSettings()]);
+  }, [refetchOrders, refetchServices, refetchSettings]);
 
   const value = useMemo(() => ({
     orders,
@@ -220,15 +156,13 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     activeOrderCount,
     capacityPercent,
     isAtCapacity,
-    addOrder,
-    updateOrderStatus,
     addService,
     updateService,
     deleteService,
     updateSettings,
     isLoading,
-    refreshData: loadData,
-  }), [orders, services, settings, activeOrderCount, capacityPercent, isAtCapacity, addOrder, updateOrderStatus, addService, updateService, deleteService, updateSettings, isLoading, loadData]);
+    refreshData,
+  }), [orders, services, settings, activeOrderCount, capacityPercent, isAtCapacity, addService, updateService, deleteService, updateSettings, isLoading, refreshData]);
 
   return (
     <ShopContext.Provider value={value}>

@@ -29,7 +29,10 @@ const Colors = {
     ACCEPTED: { color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
     IN_WASH: { color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
     READY: { color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+    OUT_FOR_DELIVERY: { color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
+    DELIVERED: { color: '#059669', bg: 'rgba(5, 150, 105, 0.15)' },
     REJECTED: { color: '#FF4757', bg: 'rgba(255, 71, 87, 0.15)' },
+    CANCELLED: { color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
   },
   light: {
     text: '#000',

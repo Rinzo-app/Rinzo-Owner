@@ -21,7 +21,7 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="orders">
         <Icon sf={{ default: "list.clipboard", selected: "list.clipboard.fill" }} />
         <Label>Orders</Label>
-        {newCount > 0 && <Badge>{newCount}</Badge>}
+        {newCount > 0 && <Badge>{String(newCount)}</Badge>}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="services">
         <Icon sf={{ default: "tag", selected: "tag.fill" }} />

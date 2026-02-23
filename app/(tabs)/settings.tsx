@@ -13,9 +13,28 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { useShop } from '@/lib/shop-context';
 import { useAuth } from '@/lib/auth-context';
+import { fetchMyDisputes, type Dispute } from '@/lib/api';
+
+function disputeBadgeBg(status: string) {
+  switch (status) {
+    case 'OPEN': return Colors.dark.warningDim;
+    case 'IN_REVIEW': return Colors.dark.primaryDim;
+    case 'RESOLVED': return Colors.dark.successDim;
+    default: return Colors.dark.surfaceElevated;
+  }
+}
+function disputeBadgeColor(status: string) {
+  switch (status) {
+    case 'OPEN': return Colors.dark.warning;
+    case 'IN_REVIEW': return Colors.dark.primary;
+    case 'RESOLVED': return Colors.dark.success;
+    default: return Colors.dark.textTertiary;
+  }
+}
 
 function SettingRow({ icon, iconColor, label, children }: {
   icon: string;
@@ -57,6 +76,11 @@ export default function SettingsScreen() {
   const [capacityValue, setCapacityValue] = useState(String(settings.dailyCapacity));
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(settings.shopName);
+  const disputesQuery = useQuery<Dispute[]>({
+    queryKey: ['my-disputes'],
+    queryFn: fetchMyDisputes,
+    staleTime: 30_000,
+  });
 
   const handleToggleOpen = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -219,6 +243,33 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <Text style={styles.sectionLabel}>MY DISPUTES</Text>
+        <View style={styles.card}>
+          {disputesQuery.isLoading ? (
+            <View style={styles.disputeEmpty}>
+              <Text style={styles.disputeEmptyText}>Loading…</Text>
+            </View>
+          ) : !disputesQuery.data?.length ? (
+            <View style={styles.disputeEmpty}>
+              <Text style={styles.disputeEmptyText}>No disputes filed</Text>
+            </View>
+          ) : (
+            disputesQuery.data.map((d) => (
+              <View key={d.id} style={styles.disputeCard}>
+                <View style={styles.disputeRow}>
+                  <Text style={styles.disputeCategory}>{d.category}</Text>
+                  <View style={[styles.disputeBadge, { backgroundColor: disputeBadgeBg(d.status) }]}>
+                    <Text style={[styles.disputeBadgeText, { color: disputeBadgeColor(d.status) }]}>{d.status.replace('_', ' ')}</Text>
+                  </View>
+                </View>
+                <Text style={styles.disputeOrder} numberOfLines={1}>Order #{String(d.orderId).slice(0, 8)}</Text>
+                {d.description ? <Text style={styles.disputeDesc} numberOfLines={2}>{d.description}</Text> : null}
+                <Text style={styles.disputeDate}>{new Date(d.createdAt).toLocaleDateString()}</Text>
+              </View>
+            ))
+          )}
+        </View>
+
         <Pressable
           style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }]}
           onPress={handleSignOut}
@@ -292,4 +343,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 71, 87, 0.2)',
   },
   signOutText: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.dark.error },
+  disputeEmpty: { padding: 16 },
+  disputeEmptyText: { fontFamily: 'Inter_400Regular', fontSize: 14, color: Colors.dark.textTertiary },
+  disputeCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.surfaceBorder,
+  },
+  disputeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  disputeCategory: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: Colors.dark.text },
+  disputeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  disputeBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, textTransform: 'uppercase' as const },
+  disputeOrder: { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.dark.textSecondary, marginBottom: 2 },
+  disputeDesc: { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.dark.textSecondary, marginBottom: 2 },
+  disputeDate: { fontFamily: 'Inter_400Regular', fontSize: 11, color: Colors.dark.textTertiary },
 });

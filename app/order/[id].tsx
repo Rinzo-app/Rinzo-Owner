@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,31 @@ import {
   ScrollView,
   Pressable,
   Platform,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
-import { useShop, OrderStatus } from '@/lib/shop-context';
+import { OrderStatus } from '@/lib/shop-context';
+import { fetchOrder, acceptOrder, rejectOrder, markReady, createDispute, DISPUTE_CATEGORIES } from '@/lib/api';
 
-const STATUS_FLOW: OrderStatus[] = ['NEW', 'ACCEPTED', 'IN_WASH', 'READY'];
+const STATUS_FLOW: OrderStatus[] = ['NEW', 'ACCEPTED', 'IN_WASH', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
 const STATUS_CONFIG: Record<OrderStatus, { color: string; bg: string; icon: string; label: string }> = {
   NEW: { color: Colors.status.NEW.color, bg: Colors.status.NEW.bg, icon: 'time', label: 'New Order' },
   ACCEPTED: { color: Colors.status.ACCEPTED.color, bg: Colors.status.ACCEPTED.bg, icon: 'checkmark-circle', label: 'Accepted' },
   IN_WASH: { color: Colors.status.IN_WASH.color, bg: Colors.status.IN_WASH.bg, icon: 'water', label: 'In Wash' },
   READY: { color: Colors.status.READY.color, bg: Colors.status.READY.bg, icon: 'checkmark-done-circle', label: 'Ready' },
+  OUT_FOR_DELIVERY: { color: Colors.status.OUT_FOR_DELIVERY.color, bg: Colors.status.OUT_FOR_DELIVERY.bg, icon: 'bicycle', label: 'Out for Delivery' },
+  DELIVERED: { color: Colors.status.DELIVERED.color, bg: Colors.status.DELIVERED.bg, icon: 'bag-check', label: 'Delivered' },
   REJECTED: { color: Colors.status.REJECTED.color, bg: Colors.status.REJECTED.bg, icon: 'close-circle', label: 'Rejected' },
+  CANCELLED: { color: Colors.status.CANCELLED.color, bg: Colors.status.CANCELLED.bg, icon: 'ban', label: 'Cancelled' },
 };
 
 function StatusTimeline({ currentStatus }: { currentStatus: OrderStatus }) {
@@ -80,11 +89,79 @@ const tlStyles = StyleSheet.create({
 export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { orders, updateOrderStatus } = useShop();
+  const queryClient = useQueryClient();
 
-  const order = orders.find(o => o.id === id);
+  // ── Dispute form state ───────────────────────────────
+  const [showDispute, setShowDispute] = useState(false);
+  const [disputeCategory, setDisputeCategory] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
+  const [disputeError, setDisputeError] = useState('');
 
-  if (!order) {
+  const { data: order, isLoading, isError } = useQuery({
+    queryKey: ['order', id],
+    queryFn: () => fetchOrder(id!),
+    enabled: !!id,
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: () => acceptOrder(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (reason: string) => rejectOrder(id!, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    },
+  });
+
+  const readyMutation = useMutation({
+    mutationFn: () => markReady(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+  });
+
+  const disputeMutation = useMutation({
+    mutationFn: () =>
+      createDispute({
+        orderId: id!,
+        category: disputeCategory,
+        description: disputeDescription.trim(),
+      }),
+    onSuccess: () => {
+      setShowDispute(false);
+      setDisputeCategory('');
+      setDisputeDescription('');
+      setDisputeError('');
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Dispute Submitted', 'We\'ll review your issue and get back to you shortly.');
+    },
+    onError: (err: any) => {
+      setDisputeError(err.message || 'Failed to submit. Please try again.');
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
+  });
+
+  const isMutating = acceptMutation.isPending || rejectMutation.isPending || readyMutation.isPending;
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
+      </View>
+    );
+  }
+
+  if (!order || isError) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Ionicons name="alert-circle-outline" size={48} color={Colors.dark.textTertiary} />
@@ -96,19 +173,39 @@ export default function OrderDetailScreen() {
     );
   }
 
-  const currentIndex = STATUS_FLOW.indexOf(order.status as OrderStatus);
-  const nextStatus = currentIndex < STATUS_FLOW.length - 1 ? STATUS_FLOW[currentIndex + 1] : null;
-  const nextConfig = nextStatus ? STATUS_CONFIG[nextStatus] : null;
-
-  const handleNextStatus = () => {
-    if (!nextStatus) return;
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    updateOrderStatus(order.id, nextStatus);
+  const handleAccept = () => {
+    Alert.alert('Accept Order', 'Are you sure you want to accept this order?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Accept', onPress: () => acceptMutation.mutate() },
+    ]);
   };
 
+  const handleMarkReady = () => {
+    Alert.alert('Mark Ready', 'Has this order finished processing and is ready for delivery?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Mark Ready', onPress: () => readyMutation.mutate() },
+    ]);
+  };
+
+  const REJECTION_REASONS = [
+    { value: 'CAPACITY_FULL', label: 'Capacity Full' },
+    { value: 'CLOSED_TEMPORARILY', label: 'Closed Temporarily' },
+    { value: 'SERVICE_UNAVAILABLE', label: 'Service Unavailable' },
+    { value: 'EMERGENCY', label: 'Emergency' },
+  ];
+
   const handleReject = () => {
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    updateOrderStatus(order.id, 'REJECTED');
+    Alert.alert(
+      'Reject Order',
+      'Select a reason for rejection:',
+      [
+        ...REJECTION_REASONS.map((r) => ({
+          text: r.label,
+          onPress: () => rejectMutation.mutate(r.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    );
   };
 
   const config = STATUS_CONFIG[order.status as OrderStatus];
@@ -188,33 +285,169 @@ export default function OrderDetailScreen() {
         </View>
       </ScrollView>
 
-      {order.status !== 'READY' && order.status !== 'REJECTED' && (
+      {order.status === 'NEW' && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
-          {order.status === 'NEW' && (
-            <Pressable
-              style={({ pressed }) => [styles.rejectBtn, pressed && { opacity: 0.8 }]}
-              onPress={handleReject}
-            >
+          <Pressable
+            style={({ pressed }) => [styles.rejectBtn, pressed && { opacity: 0.8 }]}
+            onPress={handleReject}
+            disabled={isMutating}
+          >
+            {rejectMutation.isPending ? (
+              <ActivityIndicator size="small" color={Colors.dark.error} />
+            ) : (
               <Ionicons name="close" size={20} color={Colors.dark.error} />
-            </Pressable>
-          )}
-          {nextStatus && nextConfig && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.nextStatusBtn,
-                { backgroundColor: nextConfig.color },
-                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={handleNextStatus}
-            >
-              <Ionicons name={nextConfig.icon as any} size={20} color="#fff" />
-              <Text style={styles.nextStatusText}>
-                {order.status === 'NEW' ? 'Accept Order' : `Mark ${nextConfig.label}`}
-              </Text>
-            </Pressable>
-          )}
+            )}
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextStatusBtn,
+              { backgroundColor: STATUS_CONFIG.ACCEPTED.color },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              isMutating && { opacity: 0.6 },
+            ]}
+            onPress={handleAccept}
+            disabled={isMutating}
+          >
+            {acceptMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <Text style={styles.nextStatusText}>Accept Order</Text>
+              </>
+            )}
+          </Pressable>
         </View>
       )}
+
+      {order.status === 'IN_WASH' && (
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextStatusBtn,
+              { backgroundColor: STATUS_CONFIG.READY.color },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              readyMutation.isPending && { opacity: 0.6 },
+            ]}
+            onPress={handleMarkReady}
+            disabled={readyMutation.isPending}
+          >
+            {readyMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
+                <Text style={styles.nextStatusText}>Mark Ready</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+      )}
+
+      {/* Report Issue button — visible for all statuses except REJECTED and CANCELLED */}
+      {order.status !== 'REJECTED' && order.status !== 'CANCELLED' && (
+        <View style={[styles.reportBar, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
+          <Pressable
+            style={({ pressed }) => [styles.reportIssueBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => setShowDispute(true)}
+          >
+            <Ionicons name="warning-outline" size={18} color={Colors.dark.warning} />
+            <Text style={styles.reportIssueBtnText}>Report Issue</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ── Dispute Modal ─────────────────────────────── */}
+      <Modal
+        visible={showDispute}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowDispute(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Report Issue</Text>
+              <Pressable onPress={() => setShowDispute(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={Colors.dark.text} />
+              </Pressable>
+            </View>
+
+            {!!disputeError && (
+              <View style={styles.disputeErrorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.dark.error} />
+                <Text style={styles.disputeErrorText}>{disputeError}</Text>
+              </View>
+            )}
+
+            <Text style={styles.fieldLabel}>Category</Text>
+            <View style={styles.categoriesGrid}>
+              {DISPUTE_CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.categoryChip,
+                    disputeCategory === cat && styles.categoryChipSelected,
+                  ]}
+                  onPress={() => {
+                    setDisputeCategory(cat);
+                    if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      disputeCategory === cat && styles.categoryChipTextSelected,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Description</Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder="Describe the issue in detail..."
+              placeholderTextColor={Colors.dark.textTertiary}
+              value={disputeDescription}
+              onChangeText={setDisputeDescription}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              editable={!disputeMutation.isPending}
+            />
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.submitDisputeBtn,
+                pressed && { opacity: 0.85 },
+                disputeMutation.isPending && { opacity: 0.6 },
+              ]}
+              onPress={() => {
+                if (!disputeCategory) {
+                  setDisputeError('Please select a category');
+                  return;
+                }
+                if (!disputeDescription.trim()) {
+                  setDisputeError('Please provide a description');
+                  return;
+                }
+                setDisputeError('');
+                disputeMutation.mutate();
+              }}
+              disabled={disputeMutation.isPending}
+            >
+              {disputeMutation.isPending ? (
+                <ActivityIndicator size="small" color="#0A0A0F" />
+              ) : (
+                <Text style={styles.submitDisputeBtnText}>Submit Dispute</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -312,4 +545,112 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: 'Inter_500Medium', fontSize: 16, color: Colors.dark.textSecondary, marginTop: 10 },
   backLink: { marginTop: 16 },
   backLinkText: { fontFamily: 'Inter_500Medium', fontSize: 15, color: Colors.dark.primary },
+  reportBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: Colors.dark.background,
+  },
+  reportIssueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.dark.warningDim,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 176, 32, 0.3)',
+  },
+  reportIssueBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.dark.warning },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.dark.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, color: Colors.dark.text },
+  disputeErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.dark.errorDim,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 71, 87, 0.2)',
+  },
+  disputeErrorText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.dark.error, flex: 1 },
+  fieldLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.dark.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.dark.surfaceBorder,
+  },
+  categoryChipSelected: {
+    backgroundColor: Colors.dark.primaryDim,
+    borderColor: Colors.dark.primary,
+  },
+  categoryChipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.dark.textSecondary,
+  },
+  categoryChipTextSelected: {
+    color: Colors.dark.primary,
+  },
+  textArea: {
+    backgroundColor: Colors.dark.surfaceElevated,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.dark.surfaceBorder,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: Colors.dark.text,
+    minHeight: 100,
+  },
+  submitDisputeBtn: {
+    backgroundColor: Colors.dark.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  submitDisputeBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: '#0A0A0F',
+  },
 });

@@ -18,6 +18,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0A0F' } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="status-blocked" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="order/[id]"
