@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useCallback, useEffect, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchShopOrders,
@@ -82,14 +82,16 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   // Queries must not fire before login: they would all 401, and the
   // cached 401 on shop-settings masks the "no shop yet" (404) signal
-  // that drives the create-shop onboarding redirect.
-  const { isAuthenticated } = useAuth();
+  // that drives the create-shop onboarding redirect. They also pause
+  // while the account is suspended (everything would 403).
+  const { isAuthenticated, userStatus, refreshProfile } = useAuth();
+  const queriesEnabled = isAuthenticated && userStatus !== 'SUSPENDED';
 
   // ── Orders from backend via react-query ──
   const { data: orders = [], isLoading: ordersLoading, refetch: refetchOrders } = useQuery<Order[]>({
     queryKey: ['shop-orders'],
     queryFn: fetchShopOrders,
-    enabled: isAuthenticated,
+    enabled: queriesEnabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
@@ -102,7 +104,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   } = useQuery<Service[]>({
     queryKey: ['shop-services'],
     queryFn: fetchShopServices,
-    enabled: isAuthenticated,
+    enabled: queriesEnabled,
     staleTime: 60_000,
   });
 
@@ -115,7 +117,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   } = useQuery<ShopSettings>({
     queryKey: ['shop-settings'],
     queryFn: fetchShopSettings,
-    enabled: isAuthenticated,
+    enabled: queriesEnabled,
     staleTime: 60_000,
     // Poll so the approval banner clears shortly after the admin acts
     // (RN has no window-focus refetch without extra wiring).
@@ -124,6 +126,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const needsShopSetup =
     settingsError instanceof ApiError && settingsError.status === 404;
+
+  // Suspension can happen mid-session (admin rejects/suspends the shop).
+  // The settings poll surfaces it as 403 ERR_SUSPENDED — refresh the
+  // auth status so navigation can route to the blocked screen.
+  useEffect(() => {
+    if (settingsError instanceof ApiError && settingsError.code === 'ERR_SUSPENDED') {
+      refreshProfile();
+    }
+  }, [settingsError, refreshProfile]);
 
   const isLoading = ordersLoading || servicesLoading || settingsLoading;
 

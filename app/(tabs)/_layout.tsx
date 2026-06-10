@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
 import { useShop } from "@/lib/shop-context";
+import { useAuth } from "@/lib/auth-context";
 
 function NativeTabLayout() {
   const { orders } = useShop();
@@ -111,6 +112,13 @@ function ClassicTabLayout() {
 
 export default function TabLayout() {
   const { needsShopSetup } = useShop();
+  const { userStatus } = useAuth();
+
+  // Account suspended mid-session (e.g. admin rejected the shop) —
+  // show the blocked screen, which polls for reinstatement.
+  if (userStatus === 'SUSPENDED') {
+    return <Redirect href={'/status-blocked' as Href} />;
+  }
 
   // Owner has no shop yet — send them to onboarding before the dashboard
   if (needsShopSetup) {
