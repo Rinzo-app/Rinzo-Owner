@@ -19,20 +19,29 @@ import { useAuth } from '@/lib/auth-context';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, error, clearError, isLoading } = useAuth();
+  const { signIn, signUp, error, clearError, isLoading } = useAuth();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
 
-  const handleSignIn = async () => {
-    if (!email.trim() || !password.trim()) return;
+  const isSignup = mode === 'signup';
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setLocalLoading(true);
     try {
-      await signIn(email.trim(), password);
+      if (isSignup) {
+        await signUp(name.trim(), phone.trim(), email.trim(), password);
+      } else {
+        await signIn(email.trim(), password);
+      }
       router.replace('/(tabs)');
     } catch {
     } finally {
@@ -41,7 +50,9 @@ export default function LoginScreen() {
   };
 
   const isSubmitting = localLoading || isLoading;
-  const canSubmit = email.trim().length > 0 && password.trim().length > 0 && !isSubmitting;
+  const baseValid = email.trim().length > 0 && password.trim().length >= 6;
+  const signupValid = name.trim().length > 0 && phone.trim().length >= 4;
+  const canSubmit = baseValid && (!isSignup || signupValid) && !isSubmitting;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -69,6 +80,36 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{error}</Text>
               <Ionicons name="close" size={16} color={Colors.dark.textSecondary} />
             </Pressable>
+          )}
+
+          {isSignup && (
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={20} color={Colors.dark.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Your name"
+                placeholderTextColor={Colors.dark.textTertiary}
+                value={name}
+                onChangeText={(t) => { setName(t); clearError(); }}
+                autoCapitalize="words"
+                editable={!isSubmitting}
+              />
+            </View>
+          )}
+
+          {isSignup && (
+            <View style={styles.inputWrapper}>
+              <Ionicons name="call-outline" size={20} color={Colors.dark.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Phone number"
+                placeholderTextColor={Colors.dark.textTertiary}
+                value={phone}
+                onChangeText={(t) => { setPhone(t); clearError(); }}
+                keyboardType="phone-pad"
+                editable={!isSubmitting}
+              />
+            </View>
           )}
 
           <View style={styles.inputWrapper}>
@@ -112,14 +153,26 @@ export default function LoginScreen() {
               !canSubmit && styles.signInButtonDisabled,
               pressed && canSubmit && { opacity: 0.9, transform: [{ scale: 0.98 }] },
             ]}
-            onPress={handleSignIn}
+            onPress={handleSubmit}
             disabled={!canSubmit}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#0A0A0F" size="small" />
             ) : (
-              <Text style={styles.signInText}>Sign In</Text>
+              <Text style={styles.signInText}>{isSignup ? 'Create Account' : 'Sign In'}</Text>
             )}
+          </Pressable>
+
+          <Pressable
+            onPress={() => { setMode(isSignup ? 'signin' : 'signup'); clearError(); }}
+            disabled={isSubmitting}
+            hitSlop={8}
+          >
+            <Text style={styles.switchModeText}>
+              {isSignup
+                ? 'Already have an account? Sign in'
+                : "New to Rinzo? Create your shop account"}
+            </Text>
           </Pressable>
         </View>
 
@@ -225,6 +278,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
     color: '#0A0A0F',
+  },
+  switchModeText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: Colors.dark.primary,
+    textAlign: 'center',
+    marginTop: 10,
   },
   footerSection: {
     marginTop: 40,

@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { fetch } from 'expo/fetch';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut as fbSignOut } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut as fbSignOut,
+} from 'firebase/auth';
 import { isFirebaseConfigured, firebaseReady, getFirebaseAuth } from './firebase';
 import { queryClient } from './query-client';
 import { BACKEND_URL } from './config';
@@ -17,6 +23,7 @@ interface AuthContextValue {
   isConfigured: boolean;
   userStatus: UserStatus | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (name: string, phone: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   error: string | null;
@@ -26,10 +33,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
- * Auto-register with the unified backend on first login.
- * 409 = already registered — safe to ignore.
+ * Register with the unified backend. 409 = already registered.
+ * Returns true when the account exists in the backend afterwards.
  */
-async function registerWithBackend(idToken: string, user: any) {
+async function registerWithBackend(
+  idToken: string,
+  payload: { name: string; phone: string; email: string },
+): Promise<boolean> {
   try {
     const res = await fetch(
       `${BACKEND_URL}/api/auth/register/shop`,
@@ -39,19 +49,15 @@ async function registerWithBackend(idToken: string, user: any) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({
-          name: user.displayName || user.email?.split('@')[0] || '',
-          email: user.email || '',
-          shopName: user.displayName || 'My Shop',
-        }),
+        body: JSON.stringify(payload),
       },
     );
-    if (!res.ok && res.status !== 409) {
-      console.warn('Backend shop registration:', res.status);
-    }
+    if (res.ok || res.status === 409) return true;
+    console.warn('Backend shop registration:', res.status);
+    return false;
   } catch (err) {
-    // Non-fatal — user may already be registered
-    console.warn('Backend shop registration failed (non-fatal):', err);
+    console.warn('Backend shop registration failed:', err);
+    return false;
   }
 }
 
@@ -150,11 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Firebase authentication is not initialized. Please check your Firebase configuration.');
       }
       const cred = await signInWithEmailAndPassword(auth, email, password);
-
-      // Obtain the ID token immediately and register with backend
       const idToken = await cred.user.getIdToken();
       setToken(idToken);
-      await registerWithBackend(idToken, cred.user);
     } catch (err: any) {
       const code = err?.code || '';
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
@@ -167,6 +170,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError('Please enter a valid email');
       } else {
         setError('Sign in failed. Please try again');
+      }
+      setIsLoading(false);
+      throw err;
+    }
+  };
+
+  // ── Email / password sign-up ────────────────────────────
+  const signUp = async (name: string, phone: string, email: string, password: string) => {
+    if (!isFirebaseConfigured) {
+      setError('Firebase is not configured. Please add Firebase credentials.');
+      throw new Error('Firebase not configured');
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+      await firebaseReady;
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        throw new Error('Firebase authentication is not initialized.');
+      }
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name }).catch(() => {});
+
+      const idToken = await cred.user.getIdToken();
+      const registered = await registerWithBackend(idToken, { name, phone, email });
+      if (!registered) {
+        // Roll back the orphaned Firebase account so the user can retry
+        await cred.user.delete().catch(() => {});
+        throw new Error('REGISTRATION_FAILED');
+      }
+      setToken(idToken);
+      await fetchUserStatus();
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists — sign in instead');
+      } else if (code === 'auth/weak-password') {
+        setError('Password is too weak — use at least 6 characters');
+      } else if (code === 'auth/invalid-email') {
+        setError('Please enter a valid email');
+      } else if (err?.message === 'REGISTRATION_FAILED') {
+        setError('Could not create your account. Please try again');
+      } else {
+        setError('Sign up failed. Please try again');
       }
       setIsLoading(false);
       throw err;
@@ -202,6 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isConfigured: isFirebaseConfigured,
     userStatus,
     signIn,
+    signUp,
     signOut: signOutUser,
     refreshProfile,
     error,
