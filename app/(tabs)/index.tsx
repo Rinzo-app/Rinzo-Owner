@@ -157,6 +157,60 @@ const recentStyles = StyleSheet.create({
   statusText: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
 });
 
+function ApprovalBanner({ status }: { status: 'PENDING' | 'REJECTED' | 'SUSPENDED' }) {
+  const config = {
+    PENDING: {
+      icon: 'hourglass-outline' as const,
+      color: Colors.dark.warning,
+      bg: Colors.dark.warningDim,
+      border: 'rgba(255, 184, 0, 0.25)',
+      title: 'Awaiting approval',
+      body: 'Your shop is being reviewed by Rinzo. Customers cannot see it or place orders yet — you can set up your services in the meantime.',
+    },
+    REJECTED: {
+      icon: 'close-circle-outline' as const,
+      color: Colors.dark.error,
+      bg: Colors.dark.errorDim,
+      border: 'rgba(255, 71, 87, 0.25)',
+      title: 'Registration rejected',
+      body: 'Your shop registration was not approved. Please contact Rinzo support.',
+    },
+    SUSPENDED: {
+      icon: 'pause-circle-outline' as const,
+      color: Colors.dark.error,
+      bg: Colors.dark.errorDim,
+      border: 'rgba(255, 71, 87, 0.25)',
+      title: 'Shop suspended',
+      body: 'Your shop has been suspended and is hidden from customers. Please contact Rinzo support.',
+    },
+  }[status];
+
+  return (
+    <View style={[bannerStyles.banner, { backgroundColor: config.bg, borderColor: config.border }]}>
+      <Ionicons name={config.icon} size={22} color={config.color} />
+      <View style={bannerStyles.textWrap}>
+        <Text style={[bannerStyles.title, { color: config.color }]}>{config.title}</Text>
+        <Text style={bannerStyles.body}>{config.body}</Text>
+      </View>
+    </View>
+  );
+}
+
+const bannerStyles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+  },
+  textWrap: { flex: 1, gap: 4 },
+  title: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+  body: { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.dark.textSecondary, lineHeight: 18 },
+});
+
 function getTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
@@ -201,6 +255,10 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
+
+        {settings.status && settings.status !== 'APPROVED' && (
+          <ApprovalBanner status={settings.status} />
+        )}
 
         <LinearGradient
           colors={['rgba(0, 212, 170, 0.12)', 'rgba(0, 212, 170, 0.04)']}

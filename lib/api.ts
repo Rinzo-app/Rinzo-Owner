@@ -222,6 +222,7 @@ function mapSettings(raw: any): ShopSettings {
     isOpen: raw.isOpen ?? true,
     dailyCapacity: raw.dailyCapacity ?? 20,
     autoReject: raw.autoRejectEnabled ?? false,
+    status: raw.status ?? null,
   };
 }
 

@@ -40,11 +40,15 @@ export interface Service {
   active: boolean;
 }
 
+export type ShopApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
 export interface ShopSettings {
   shopName: string;
   isOpen: boolean;
   dailyCapacity: number;
   autoReject: boolean;
+  /** Admin approval status; null until loaded from the backend. */
+  status: ShopApprovalStatus | null;
 }
 
 interface ShopContextValue {
@@ -69,6 +73,7 @@ const DEFAULT_SETTINGS: ShopSettings = {
   isOpen: true,
   dailyCapacity: 20,
   autoReject: false,
+  status: null,
 };
 
 const ShopContext = createContext<ShopContextValue | null>(null);
@@ -112,6 +117,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     queryFn: fetchShopSettings,
     enabled: isAuthenticated,
     staleTime: 60_000,
+    // Poll so the approval banner clears shortly after the admin acts
+    // (RN has no window-focus refetch without extra wiring).
+    refetchInterval: 30_000,
   });
 
   const needsShopSetup =
