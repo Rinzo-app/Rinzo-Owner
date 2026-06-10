@@ -1,5 +1,5 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs, type Href } from "expo-router";
 import { NativeTabs, Icon, Label, Badge } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
@@ -110,6 +110,13 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const { needsShopSetup } = useShop();
+
+  // Owner has no shop yet — send them to onboarding before the dashboard
+  if (needsShopSetup) {
+    return <Redirect href={'/create-shop' as Href} />;
+  }
+
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }

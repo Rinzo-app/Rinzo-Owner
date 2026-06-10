@@ -38,7 +38,13 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Rinzo uses your location to set your shop's position so customers and riders can find you."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

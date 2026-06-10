@@ -198,6 +198,21 @@ export async function deleteShopService(serviceId: string): Promise<void> {
   await request("DELETE", `/api/shop/services/${serviceId}`);
 }
 
+// ── Shop onboarding API ──────────────────────────────────
+
+export interface CreateShopPayload {
+  name: string;
+  phone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+/** POST /api/shop — create the owner's shop (starts as PENDING) */
+export async function createShop(payload: CreateShopPayload): Promise<any> {
+  return request("POST", "/api/shop", payload);
+}
+
 // ── Settings API ─────────────────────────────────────────
 
 /** Transform a backend settings row → the ShopSettings shape the UI expects */

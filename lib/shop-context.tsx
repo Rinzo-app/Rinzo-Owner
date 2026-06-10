@@ -8,6 +8,7 @@ import {
   deleteShopService,
   fetchShopSettings,
   patchShopSettings,
+  ApiError,
 } from './api';
 
 export type OrderStatus = 'NEW' | 'ACCEPTED' | 'IN_WASH' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'REJECTED' | 'CANCELLED';
@@ -57,6 +58,8 @@ interface ShopContextValue {
   deleteService: (serviceId: string) => Promise<void>;
   updateSettings: (settings: Partial<ShopSettings>) => Promise<void>;
   isLoading: boolean;
+  /** True when the owner has no shop yet (backend returned ERR_NO_SHOPS). */
+  needsShopSetup: boolean;
   refreshData: () => Promise<void>;
 }
 
@@ -95,12 +98,16 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const {
     data: settings = DEFAULT_SETTINGS,
     isLoading: settingsLoading,
+    error: settingsError,
     refetch: refetchSettings,
   } = useQuery<ShopSettings>({
     queryKey: ['shop-settings'],
     queryFn: fetchShopSettings,
     staleTime: 60_000,
   });
+
+  const needsShopSetup =
+    settingsError instanceof ApiError && settingsError.status === 404;
 
   const isLoading = ordersLoading || servicesLoading || settingsLoading;
 
@@ -161,8 +168,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     deleteService,
     updateSettings,
     isLoading,
+    needsShopSetup,
     refreshData,
-  }), [orders, services, settings, activeOrderCount, capacityPercent, isAtCapacity, addService, updateService, deleteService, updateSettings, isLoading, refreshData]);
+  }), [orders, services, settings, activeOrderCount, capacityPercent, isAtCapacity, addService, updateService, deleteService, updateSettings, isLoading, needsShopSetup, refreshData]);
 
   return (
     <ShopContext.Provider value={value}>
