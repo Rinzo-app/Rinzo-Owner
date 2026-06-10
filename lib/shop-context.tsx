@@ -10,6 +10,7 @@ import {
   patchShopSettings,
   ApiError,
 } from './api';
+import { useAuth } from './auth-context';
 
 export type OrderStatus = 'NEW' | 'ACCEPTED' | 'IN_WASH' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'REJECTED' | 'CANCELLED';
 
@@ -74,11 +75,16 @@ const ShopContext = createContext<ShopContextValue | null>(null);
 
 export function ShopProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  // Queries must not fire before login: they would all 401, and the
+  // cached 401 on shop-settings masks the "no shop yet" (404) signal
+  // that drives the create-shop onboarding redirect.
+  const { isAuthenticated } = useAuth();
 
   // ── Orders from backend via react-query ──
   const { data: orders = [], isLoading: ordersLoading, refetch: refetchOrders } = useQuery<Order[]>({
     queryKey: ['shop-orders'],
     queryFn: fetchShopOrders,
+    enabled: isAuthenticated,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
@@ -91,6 +97,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   } = useQuery<Service[]>({
     queryKey: ['shop-services'],
     queryFn: fetchShopServices,
+    enabled: isAuthenticated,
     staleTime: 60_000,
   });
 
@@ -103,6 +110,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   } = useQuery<ShopSettings>({
     queryKey: ['shop-settings'],
     queryFn: fetchShopSettings,
+    enabled: isAuthenticated,
     staleTime: 60_000,
   });
 
