@@ -12,6 +12,7 @@ import { isFirebaseConfigured, firebaseReady, getFirebaseAuth } from './firebase
 import { queryClient } from './query-client';
 import { BACKEND_URL } from './config';
 import { request } from './http-client';
+import { registerForPushNotifications } from './push-notifications';
 
 export type UserStatus = 'ACTIVE' | 'PENDING' | 'SUSPENDED';
 
@@ -109,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setToken(idToken);
           // Fetch user status from backend after auth
           await fetchUserStatus();
+          // Register this device for push notifications (never throws)
+          registerForPushNotifications();
         } else {
           setToken(null);
           setUserStatus(null);
