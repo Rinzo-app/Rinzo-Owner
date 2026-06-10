@@ -15,11 +15,14 @@ export default function IndexScreen() {
       return;
     }
 
-    if (userStatus === 'PENDING' || userStatus === 'SUSPENDED') {
+    if (userStatus === 'SUSPENDED') {
       router.replace('/status-blocked' as Href);
       return;
     }
 
+    // PENDING owners must reach the app: they still need to create
+    // their shop (tabs redirect to /create-shop when no shop exists),
+    // and admin approval happens after that.
     // ACTIVE or status not yet loaded — allow entry
     router.replace('/(tabs)');
   }, [isLoading, isAuthenticated, userStatus]);
