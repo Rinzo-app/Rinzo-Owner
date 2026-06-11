@@ -51,7 +51,8 @@ export default function LoginScreen() {
 
   const isSubmitting = localLoading || isLoading;
   const baseValid = email.trim().length > 0 && password.trim().length >= 6;
-  const signupValid = name.trim().length > 0 && phone.trim().length >= 4;
+  const phoneValid = /^(\+91|0)?[6-9]\d{9}$/.test(phone.replace(/[\s-]/g, ''));
+  const signupValid = name.trim().length > 0 && phoneValid;
   const canSubmit = baseValid && (!isSignup || signupValid) && !isSubmitting;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;

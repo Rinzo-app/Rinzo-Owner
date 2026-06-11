@@ -49,7 +49,8 @@ function mapOrder(raw: any): Order {
 
 /** GET /api/shop/orders — all orders for shops owned by this user */
 export async function fetchShopOrders(): Promise<Order[]> {
-  const res = await request<{ data: any[] }>("GET", "/api/shop/orders?limit=200");
+  // limit is capped at 100 server-side — asking for more used to 400
+  const res = await request<{ data: any[] }>("GET", "/api/shop/orders?limit=100");
   return res.data.map(mapOrder);
 }
 

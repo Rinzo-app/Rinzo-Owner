@@ -73,7 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Fetch user status from backend ─────────────────────
   const fetchUserStatus = useCallback(async () => {
     try {
-      const data = await request<{ status?: string }>('GET', '/api/auth/me');
+      const data = await request<{ status?: string; role?: string }>('GET', '/api/auth/me');
+
+      // One account = one role. This app is for shop owners only —
+      // other roles get a clear pointer to the right app.
+      if (data.role && data.role !== 'SHOP_OWNER') {
+        const appName = data.role === 'CUSTOMER' ? 'Rinzo customer app' : 'Rinzo Rider app';
+        setError(`This account is registered as a ${data.role.toLowerCase().replace('_', ' ')} — please use the ${appName}.`);
+        const auth = getFirebaseAuth();
+        if (auth) await fbSignOut(auth).catch(() => {});
+        setUser(null);
+        setToken(null);
+        setUserStatus(null);
+        return null;
+      }
+
       const status = (data.status as UserStatus) || 'ACTIVE';
       setUserStatus(status);
       return status;

@@ -31,7 +31,7 @@ export default function CreateShopScreen() {
 
   const canSubmit =
     name.trim().length > 0 &&
-    phone.trim().length >= 4 &&
+    /^(\+91|0)?[6-9]\d{9}$/.test(phone.replace(/[\s-]/g, '')) &&
     address.trim().length > 0 &&
     coords !== null &&
     !submitting;
