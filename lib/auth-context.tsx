@@ -122,13 +122,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
+        // During sign-up the Firebase account exists before the backend
+        // row does. Becoming "authenticated" here lets data queries fire
+        // into that window — they 401, the result gets cached, and the
+        // no-shop (404) signal that drives create-shop onboarding is
+        // masked. signUp() owns ALL state updates until it completes.
+        if (firebaseUser && isRegistering.current) return;
+
         setUser(firebaseUser);
         if (firebaseUser) {
           const idToken = await firebaseUser.getIdToken();
           setToken(idToken);
-          // During sign-up, signUp() fetches status itself once the
-          // backend row exists — don't race it here.
-          if (isRegistering.current) return;
           await fetchUserStatus();
           // Register this device for push notifications (never throws)
           registerForPushNotifications();
@@ -224,8 +228,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await cred.user.delete().catch(() => {});
         throw new Error('REGISTRATION_FAILED');
       }
+      // Backend row now exists — only NOW become authenticated, so
+      // data queries fire fresh and see the real state (404 → onboarding).
+      setUser(cred.user);
       setToken(idToken);
-      // Backend row now exists — safe to fetch status.
       await fetchUserStatus();
       registerForPushNotifications();
       setIsLoading(false);
