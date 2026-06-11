@@ -229,7 +229,7 @@ export default function OrderDetailScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + webBottomInset + 120 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.statusHeader, { backgroundColor: config.bg }]}>
@@ -285,68 +285,71 @@ export default function OrderDetailScreen() {
         </View>
       </ScrollView>
 
-      {order.status === 'NEW' && (
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
-          <Pressable
-            style={({ pressed }) => [styles.rejectBtn, pressed && { opacity: 0.8 }]}
-            onPress={handleReject}
-            disabled={isMutating}
-          >
-            {rejectMutation.isPending ? (
-              <ActivityIndicator size="small" color={Colors.dark.error} />
-            ) : (
-              <Ionicons name="close" size={20} color={Colors.dark.error} />
-            )}
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.nextStatusBtn,
-              { backgroundColor: STATUS_CONFIG.ACCEPTED.color },
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-              isMutating && { opacity: 0.6 },
-            ]}
-            onPress={handleAccept}
-            disabled={isMutating}
-          >
-            {acceptMutation.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={styles.nextStatusText}>Accept Order</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      )}
+      {/* Bottom area — primary order actions stacked above Report Issue.
+          One container in normal flow: the action bar used to be
+          absolutely positioned and the report bar painted over it,
+          hiding Accept/Reject entirely. */}
+      <View style={[styles.bottomArea, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
+        {order.status === 'NEW' && (
+          <View style={styles.actionRow}>
+            <Pressable
+              style={({ pressed }) => [styles.rejectBtn, pressed && { opacity: 0.8 }]}
+              onPress={handleReject}
+              disabled={isMutating}
+            >
+              {rejectMutation.isPending ? (
+                <ActivityIndicator size="small" color={Colors.dark.error} />
+              ) : (
+                <Ionicons name="close" size={20} color={Colors.dark.error} />
+              )}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.nextStatusBtn,
+                { backgroundColor: STATUS_CONFIG.ACCEPTED.color },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                isMutating && { opacity: 0.6 },
+              ]}
+              onPress={handleAccept}
+              disabled={isMutating}
+            >
+              {acceptMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  <Text style={styles.nextStatusText}>Accept Order</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        )}
 
-      {order.status === 'IN_WASH' && (
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.nextStatusBtn,
-              { backgroundColor: STATUS_CONFIG.READY.color },
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-              readyMutation.isPending && { opacity: 0.6 },
-            ]}
-            onPress={handleMarkReady}
-            disabled={readyMutation.isPending}
-          >
-            {readyMutation.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
-                <Text style={styles.nextStatusText}>Mark Ready</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      )}
+        {order.status === 'IN_WASH' && (
+          <View style={styles.actionRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.nextStatusBtn,
+                { backgroundColor: STATUS_CONFIG.READY.color },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                readyMutation.isPending && { opacity: 0.6 },
+              ]}
+              onPress={handleMarkReady}
+              disabled={readyMutation.isPending}
+            >
+              {readyMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
+                  <Text style={styles.nextStatusText}>Mark Ready</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        )}
 
-      {/* Report Issue button — visible for all statuses except REJECTED and CANCELLED */}
-      {order.status !== 'REJECTED' && order.status !== 'CANCELLED' && (
-        <View style={[styles.reportBar, { paddingBottom: insets.bottom + webBottomInset + 16 }]}>
+        {order.status !== 'REJECTED' && order.status !== 'CANCELLED' && (
           <Pressable
             style={({ pressed }) => [styles.reportIssueBtn, pressed && { opacity: 0.85 }]}
             onPress={() => setShowDispute(true)}
@@ -354,8 +357,8 @@ export default function OrderDetailScreen() {
             <Ionicons name="warning-outline" size={18} color={Colors.dark.warning} />
             <Text style={styles.reportIssueBtnText}>Report Issue</Text>
           </Pressable>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* ── Dispute Modal ─────────────────────────────── */}
       <Modal
@@ -509,18 +512,17 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.dark.textSecondary },
   totalAmount: { fontFamily: 'Inter_700Bold', fontSize: 22, color: Colors.dark.primary },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    gap: 12,
+  bottomArea: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 14,
+    gap: 12,
     backgroundColor: Colors.dark.background,
     borderTopWidth: 1,
     borderTopColor: Colors.dark.surfaceBorder,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   rejectBtn: {
     width: 56,
@@ -545,11 +547,6 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: 'Inter_500Medium', fontSize: 16, color: Colors.dark.textSecondary, marginTop: 10 },
   backLink: { marginTop: 16 },
   backLinkText: { fontFamily: 'Inter_500Medium', fontSize: 15, color: Colors.dark.primary },
-  reportBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    backgroundColor: Colors.dark.background,
-  },
   reportIssueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
