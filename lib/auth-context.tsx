@@ -69,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const appState = useRef(AppState.currentState);
+  // True while signUp() runs. createUserWithEmailAndPassword fires
+  // onAuthStateChanged immediately, which would fetch /api/auth/me
+  // before the backend row exists (→ 401 → destructive sign-out).
+  const isRegistering = useRef(false);
 
   // ── Fetch user status from backend ─────────────────────
   const fetchUserStatus = useCallback(async () => {
@@ -122,7 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (firebaseUser) {
           const idToken = await firebaseUser.getIdToken();
           setToken(idToken);
-          // Fetch user status from backend after auth
+          // During sign-up, signUp() fetches status itself once the
+          // backend row exists — don't race it here.
+          if (isRegistering.current) return;
           await fetchUserStatus();
           // Register this device for push notifications (never throws)
           registerForPushNotifications();
@@ -201,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setError(null);
     setIsLoading(true);
+    isRegistering.current = true;
     try {
       await firebaseReady;
       const auth = getFirebaseAuth();
@@ -218,7 +225,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('REGISTRATION_FAILED');
       }
       setToken(idToken);
+      // Backend row now exists — safe to fetch status.
       await fetchUserStatus();
+      registerForPushNotifications();
+      setIsLoading(false);
     } catch (err: any) {
       const code = err?.code || '';
       if (code === 'auth/email-already-in-use') {
@@ -234,6 +244,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setIsLoading(false);
       throw err;
+    } finally {
+      isRegistering.current = false;
     }
   };
 
