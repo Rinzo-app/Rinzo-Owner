@@ -99,18 +99,25 @@ export default function LoginScreen() {
           )}
 
           {isSignup && (
-            <View style={styles.inputWrapper}>
-              <Ionicons name="call-outline" size={20} color={Colors.dark.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Phone number"
-                placeholderTextColor={Colors.dark.textTertiary}
-                value={phone}
-                onChangeText={(t) => { setPhone(t); clearError(); }}
-                keyboardType="phone-pad"
-                editable={!isSubmitting}
-              />
-            </View>
+            <>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="call-outline" size={20} color={Colors.dark.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Phone number"
+                  placeholderTextColor={Colors.dark.textTertiary}
+                  value={phone}
+                  onChangeText={(t) => { setPhone(t); clearError(); }}
+                  keyboardType="phone-pad"
+                  editable={!isSubmitting}
+                />
+              </View>
+              {phone.length > 0 && !phoneValid && (
+                <Text style={styles.fieldError}>
+                  Enter a valid 10-digit mobile number (starts with 6–9)
+                </Text>
+              )}
+            </>
           )}
 
           <View style={styles.inputWrapper}>
@@ -279,6 +286,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
     color: '#0A0A0F',
+  },
+  fieldError: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#F87171',
+    marginTop: -8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
   },
   switchModeText: {
     fontFamily: 'Inter_500Medium',

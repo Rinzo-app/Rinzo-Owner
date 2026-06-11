@@ -30,9 +30,11 @@ export default function CreateShopScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const phoneValid = /^(\+91|0)?[6-9]\d{9}$/.test(phone.replace(/[\s-]/g, ''));
+
   const canSubmit =
     name.trim().length > 0 &&
-    /^(\+91|0)?[6-9]\d{9}$/.test(phone.replace(/[\s-]/g, '')) &&
+    phoneValid &&
     address.trim().length > 0 &&
     coords !== null &&
     !submitting;
@@ -124,6 +126,11 @@ export default function CreateShopScreen() {
             onChangeText={setPhone}
             keyboardType="phone-pad"
           />
+          {phone.length > 0 && !phoneValid && (
+            <Text style={styles.fieldError}>
+              Enter a valid 10-digit mobile number (starts with 6–9)
+            </Text>
+          )}
         </View>
 
         <View style={styles.field}>
@@ -255,6 +262,7 @@ const styles = StyleSheet.create({
   locationBtnText: { fontFamily: 'Inter_500Medium', fontSize: 15, color: Colors.dark.primary, flex: 1 },
   locationBtnTextDone: { color: '#4ADE80' },
   hint: { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.dark.textTertiary, lineHeight: 17 },
+  fieldError: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#F87171', marginTop: 6 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
