@@ -17,6 +17,7 @@ import * as Location from 'expo-location';
 import { useQueryClient } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { createShop, ApiError } from '@/lib/api';
+import { getCurrentPosition } from '@/lib/get-position';
 
 export default function CreateShopScreen() {
   const queryClient = useQueryClient();
@@ -45,9 +46,7 @@ export default function CreateShopScreen() {
         setError('Location permission is needed to set your shop position. Customers find you by distance.');
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const pos = await getCurrentPosition();
       setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
