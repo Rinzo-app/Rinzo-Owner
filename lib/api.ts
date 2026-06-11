@@ -8,6 +8,7 @@ export { ApiError } from "./http-client";
 const STATUS_TO_UI: Record<string, OrderStatus> = {
   PLACED: "NEW",
   SHOP_ACCEPTED: "ACCEPTED",
+  PICKUP_OFFERED: "ACCEPTED",
   PICKUP_ASSIGNED: "ACCEPTED",
   PICKED_UP_FROM_CUSTOMER: "IN_WASH",
   AT_SHOP: "IN_WASH",
