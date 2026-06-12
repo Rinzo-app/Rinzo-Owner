@@ -15,10 +15,16 @@ import { useAuth } from './auth-context';
 export type OrderStatus = 'NEW' | 'ACCEPTED' | 'IN_WASH' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'REJECTED' | 'CANCELLED';
 
 export interface OrderItem {
+  /** order_items row id — needed for weighing */
+  id?: string;
   serviceName: string;
   quantity: number;
   price: number;
+  /** Measured weight/quantity (set after the shop weighs) */
+  actualQuantity?: number | null;
 }
+
+export type AdjustmentStatus = 'NONE' | 'PENDING' | 'APPLIED';
 
 export interface Order {
   id: string;
@@ -30,6 +36,10 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   notes?: string;
+  /** Weighing / price adjustment */
+  adjustmentStatus?: AdjustmentStatus;
+  originalTotalAmount?: number | null;
+  proposedTotalAmount?: number | null;
 }
 
 export interface Service {

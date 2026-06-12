@@ -27,9 +27,11 @@ function mapStatus(backendStatus: string): OrderStatus {
 function mapOrder(raw: any): Order {
   const items = Array.isArray(raw.items)
     ? raw.items.map((i: any) => ({
+        id: i.id,
         serviceName: i.serviceName || i.name || "Service",
         quantity: i.quantity,
         price: i.price,
+        actualQuantity: i.actualQuantity ?? null,
       }))
     : [];
 
@@ -43,6 +45,9 @@ function mapOrder(raw: any): Order {
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt || raw.createdAt,
     notes: raw.notes,
+    adjustmentStatus: raw.adjustmentStatus ?? 'NONE',
+    originalTotalAmount: raw.originalTotalAmount ?? null,
+    proposedTotalAmount: raw.proposedTotalAmount ?? null,
   };
 }
 
@@ -81,6 +86,15 @@ export async function rejectOrder(
 /** POST /api/orders/:id/ready — mark an IN_WASH order as READY */
 export async function markReady(orderId: string): Promise<Order> {
   const data = await request("POST", `/api/orders/${orderId}/ready`);
+  return mapOrder(data);
+}
+
+/** POST /api/orders/:id/weigh — submit actual weights (IN_WASH only) */
+export async function weighOrder(
+  orderId: string,
+  items: Array<{ itemId: string; actualQuantity: number }>,
+): Promise<Order> {
+  const data = await request("POST", `/api/orders/${orderId}/weigh`, { items });
   return mapOrder(data);
 }
 

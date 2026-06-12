@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { OrderStatus } from '@/lib/shop-context';
-import { fetchOrder, acceptOrder, rejectOrder, markReady, createDispute, DISPUTE_CATEGORIES } from '@/lib/api';
+import { fetchOrder, acceptOrder, rejectOrder, markReady, weighOrder, createDispute, DISPUTE_CATEGORIES } from '@/lib/api';
 
 const STATUS_FLOW: OrderStatus[] = ['NEW', 'ACCEPTED', 'IN_WASH', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
@@ -97,6 +97,11 @@ export default function OrderDetailScreen() {
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeError, setDisputeError] = useState('');
 
+  // ── Weighing state ───────────────────────────────────
+  const [showWeigh, setShowWeigh] = useState(false);
+  const [weights, setWeights] = useState<Record<string, string>>({});
+  const [weighError, setWeighError] = useState('');
+
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['order', id],
     queryFn: () => fetchOrder(id!),
@@ -128,7 +133,62 @@ export default function OrderDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
+    onError: (err: any) => {
+      Alert.alert('Cannot mark ready', err?.message || 'Please try again.');
+    },
   });
+
+  const weighMutation = useMutation({
+    mutationFn: (items: Array<{ itemId: string; actualQuantity: number }>) =>
+      weighOrder(id!, items),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
+      setShowWeigh(false);
+      setWeighError('');
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (updated.adjustmentStatus === 'PENDING') {
+        Alert.alert(
+          'Customer approval needed',
+          `The new total (₹${updated.proposedTotalAmount}) is more than 20% above the estimate. The customer has been asked to approve it — you can mark the order ready once they do.`,
+        );
+      } else {
+        Alert.alert('Price updated', `Final total: ₹${updated.totalAmount}`);
+      }
+    },
+    onError: (err: any) => {
+      setWeighError(err?.message || 'Failed to save weights. Please try again.');
+    },
+  });
+
+  const openWeigh = () => {
+    const initial: Record<string, string> = {};
+    for (const item of order?.items ?? []) {
+      if (item.id) {
+        initial[item.id] = String(item.actualQuantity ?? item.quantity);
+      }
+    }
+    setWeights(initial);
+    setWeighError('');
+    setShowWeigh(true);
+  };
+
+  const submitWeights = () => {
+    const items: Array<{ itemId: string; actualQuantity: number }> = [];
+    for (const [itemId, raw] of Object.entries(weights)) {
+      const qty = parseFloat(raw);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        setWeighError('Every item needs a weight greater than 0.');
+        return;
+      }
+      items.push({ itemId, actualQuantity: qty });
+    }
+    if (items.length === 0) {
+      setWeighError('Nothing to weigh.');
+      return;
+    }
+    weighMutation.mutate(items);
+  };
 
   const disputeMutation = useMutation({
     mutationFn: () =>
@@ -264,19 +324,33 @@ export default function OrderDetailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Items</Text>
-          {order.items.map((item, i) => (
-            <View key={i} style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.serviceName}</Text>
-                <Text style={styles.itemQty}>x{item.quantity}</Text>
+          {order.items.map((item, i) => {
+            const qty = item.actualQuantity ?? item.quantity;
+            const weighed = item.actualQuantity != null;
+            return (
+              <View key={i} style={styles.itemRow}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{item.serviceName}</Text>
+                  <Text style={styles.itemQty}>
+                    x{qty}{weighed ? ' (weighed)' : ' (est.)'}
+                  </Text>
+                </View>
+                <Text style={styles.itemPrice}>{'\u20B9'}{Math.round(qty * item.price)}</Text>
               </View>
-              <Text style={styles.itemPrice}>{'\u20B9'}{item.quantity * item.price}</Text>
-            </View>
-          ))}
+            );
+          })}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalAmount}>{'\u20B9'}{order.totalAmount}</Text>
           </View>
+          {order.adjustmentStatus === 'PENDING' && order.proposedTotalAmount != null && (
+            <View style={styles.adjustPendingBox}>
+              <Ionicons name="hourglass-outline" size={16} color={Colors.dark.warning} />
+              <Text style={styles.adjustPendingText}>
+                Waiting for the customer to approve the new total of {'\u20B9'}{order.proposedTotalAmount}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -326,27 +400,41 @@ export default function OrderDetailScreen() {
         )}
 
         {order.status === 'IN_WASH' && (
-          <View style={styles.actionRow}>
+          <>
             <Pressable
-              style={({ pressed }) => [
-                styles.nextStatusBtn,
-                { backgroundColor: STATUS_CONFIG.READY.color },
-                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                readyMutation.isPending && { opacity: 0.6 },
-              ]}
-              onPress={handleMarkReady}
-              disabled={readyMutation.isPending}
+              style={({ pressed }) => [styles.weighBtn, pressed && { opacity: 0.85 }]}
+              onPress={openWeigh}
+              disabled={weighMutation.isPending}
             >
-              {readyMutation.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
-                  <Text style={styles.nextStatusText}>Mark Ready</Text>
-                </>
-              )}
+              <Ionicons name="scale-outline" size={18} color={Colors.dark.primary} />
+              <Text style={styles.weighBtnText}>
+                {order.adjustmentStatus === 'NONE' ? 'Weigh & Update Price' : 'Re-weigh'}
+              </Text>
             </Pressable>
-          </View>
+            <View style={styles.actionRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.nextStatusBtn,
+                  { backgroundColor: STATUS_CONFIG.READY.color },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  (readyMutation.isPending || order.adjustmentStatus === 'PENDING') && { opacity: 0.6 },
+                ]}
+                onPress={handleMarkReady}
+                disabled={readyMutation.isPending}
+              >
+                {readyMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
+                    <Text style={styles.nextStatusText}>
+                      {order.adjustmentStatus === 'PENDING' ? 'Awaiting price approval' : 'Mark Ready'}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </>
         )}
 
         {order.status !== 'REJECTED' && order.status !== 'CANCELLED' && (
@@ -446,6 +534,73 @@ export default function OrderDetailScreen() {
                 <ActivityIndicator size="small" color="#0A0A0F" />
               ) : (
                 <Text style={styles.submitDisputeBtnText}>Submit Dispute</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Weighing Modal ─────────────────────────────── */}
+      <Modal
+        visible={showWeigh}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowWeigh(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Actual Weight</Text>
+              <Pressable onPress={() => setShowWeigh(false)} hitSlop={12} disabled={weighMutation.isPending}>
+                <Ionicons name="close" size={22} color={Colors.dark.text} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.weighHint}>
+              Enter the measured quantity for each item (kg can be fractional, e.g. 2.5).
+              Small changes apply instantly; increases over 20% ask the customer to approve.
+            </Text>
+
+            {!!weighError && (
+              <View style={styles.disputeErrorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.dark.error} />
+                <Text style={styles.disputeErrorText}>{weighError}</Text>
+              </View>
+            )}
+
+            {order.items.map((item, i) =>
+              item.id ? (
+                <View key={item.id} style={styles.weighRow}>
+                  <View style={styles.weighRowInfo}>
+                    <Text style={styles.itemName}>{item.serviceName}</Text>
+                    <Text style={styles.itemQty}>estimated x{item.quantity} · {'₹'}{item.price} each</Text>
+                  </View>
+                  <TextInput
+                    style={styles.weighInput}
+                    keyboardType="decimal-pad"
+                    value={weights[item.id] ?? ''}
+                    onChangeText={(t) => setWeights((w) => ({ ...w, [item.id!]: t.replace(',', '.') }))}
+                    editable={!weighMutation.isPending}
+                    placeholder="0.0"
+                    placeholderTextColor={Colors.dark.textTertiary}
+                  />
+                </View>
+              ) : null,
+            )}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.submitDisputeBtn,
+                pressed && { opacity: 0.85 },
+                weighMutation.isPending && { opacity: 0.6 },
+              ]}
+              onPress={submitWeights}
+              disabled={weighMutation.isPending}
+            >
+              {weighMutation.isPending ? (
+                <ActivityIndicator size="small" color="#0A0A0F" />
+              ) : (
+                <Text style={styles.submitDisputeBtnText}>Save Weights</Text>
               )}
             </Pressable>
           </View>
@@ -559,6 +714,66 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 176, 32, 0.3)',
   },
   reportIssueBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.dark.warning },
+  weighBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1,
+    borderColor: Colors.dark.primary,
+    marginBottom: 10,
+  },
+  weighBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.dark.primary },
+  weighHint: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: Colors.dark.textSecondary,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  weighRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.surfaceBorder,
+  },
+  weighRowInfo: { flex: 1 },
+  weighInput: {
+    width: 96,
+    backgroundColor: Colors.dark.surfaceElevated,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.surfaceBorder,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: Colors.dark.text,
+    textAlign: 'center',
+  },
+  adjustPendingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  adjustPendingText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.dark.warning,
+    lineHeight: 18,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
