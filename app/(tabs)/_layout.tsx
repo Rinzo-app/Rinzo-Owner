@@ -112,7 +112,13 @@ function ClassicTabLayout() {
 
 export default function TabLayout() {
   const { needsShopSetup } = useShop();
-  const { userStatus } = useAuth();
+  const { userStatus, isAuthenticated, isLoading } = useAuth();
+
+  // Signed out (Sign Out button or expired session) — back to login.
+  // Without this guard the user stayed stranded on the dashboard.
+  if (!isLoading && !isAuthenticated) {
+    return <Redirect href={'/login' as Href} />;
+  }
 
   // Account suspended mid-session (e.g. admin rejected the shop) —
   // show the blocked screen, which polls for reinstatement.
