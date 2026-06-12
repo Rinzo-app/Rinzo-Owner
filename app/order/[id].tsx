@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { OrderStatus } from '@/lib/shop-context';
 import { fetchOrder, acceptOrder, rejectOrder, markReady, weighOrder, createDispute, DISPUTE_CATEGORIES } from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 
 const STATUS_FLOW: OrderStatus[] = ['NEW', 'ACCEPTED', 'IN_WASH', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
@@ -150,10 +151,10 @@ export default function OrderDetailScreen() {
       if (updated.adjustmentStatus === 'PENDING') {
         Alert.alert(
           'Customer approval needed',
-          `The new total (₹${updated.proposedTotalAmount}) is more than 20% above the estimate. The customer has been asked to approve it — you can mark the order ready once they do.`,
+          `The new total (${formatMoney(updated.proposedTotalAmount ?? 0)}) is more than 20% above the estimate. The customer has been asked to approve it — you can mark the order ready once they do.`,
         );
       } else {
-        Alert.alert('Price updated', `Final total: ₹${updated.totalAmount}`);
+        Alert.alert('Price updated', `Final total: ${formatMoney(updated.totalAmount)}`);
       }
     },
     onError: (err: any) => {
@@ -335,19 +336,19 @@ export default function OrderDetailScreen() {
                     x{qty}{weighed ? ' (weighed)' : ' (est.)'}
                   </Text>
                 </View>
-                <Text style={styles.itemPrice}>{'\u20B9'}{Math.round(qty * item.price)}</Text>
+                <Text style={styles.itemPrice}>{formatMoney(Math.round(qty * item.price))}</Text>
               </View>
             );
           })}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalAmount}>{'\u20B9'}{order.totalAmount}</Text>
+            <Text style={styles.totalAmount}>{formatMoney(order.totalAmount)}</Text>
           </View>
           {order.adjustmentStatus === 'PENDING' && order.proposedTotalAmount != null && (
             <View style={styles.adjustPendingBox}>
               <Ionicons name="hourglass-outline" size={16} color={Colors.dark.warning} />
               <Text style={styles.adjustPendingText}>
-                Waiting for the customer to approve the new total of {'\u20B9'}{order.proposedTotalAmount}
+                Waiting for the customer to approve the new total of {formatMoney(order.proposedTotalAmount)}
               </Text>
             </View>
           )}
@@ -573,7 +574,7 @@ export default function OrderDetailScreen() {
                 <View key={item.id} style={styles.weighRow}>
                   <View style={styles.weighRowInfo}>
                     <Text style={styles.itemName}>{item.serviceName}</Text>
-                    <Text style={styles.itemQty}>estimated x{item.quantity} · {'₹'}{item.price} each</Text>
+                    <Text style={styles.itemQty}>estimated x{item.quantity} · {formatMoney(item.price)} each</Text>
                   </View>
                   <TextInput
                     style={styles.weighInput}

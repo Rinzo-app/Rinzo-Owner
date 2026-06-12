@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
+import { formatMoney } from '@/lib/money';
 import { useShop, Order, OrderStatus } from '@/lib/shop-context';
 
 const STATUS_FILTERS: { label: string; value: OrderStatus | 'ALL' }[] = [
@@ -119,7 +120,7 @@ function OrderCard({ order }: { order: Order }) {
           <Ionicons name="call-outline" size={14} color={Colors.dark.textTertiary} />
           <Text style={cardStyles.phoneText}>{order.customerPhone}</Text>
         </View>
-        <Text style={cardStyles.amount}>{'\u20B9'}{order.totalAmount}</Text>
+        <Text style={cardStyles.amount}>{formatMoney(order.totalAmount)}</Text>
       </View>
     </Pressable>
   );

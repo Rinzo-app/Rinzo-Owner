@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
+import { formatMoney } from '@/lib/money';
 import { useShop, OrderStatus } from '@/lib/shop-context';
 
 function CapacityMeter({ current, max, percent }: { current: number; max: number; percent: number }) {
@@ -126,7 +127,7 @@ function RecentOrderItem({ order }: { order: any }) {
         </Text>
       </View>
       <View style={recentStyles.right}>
-        <Text style={recentStyles.amount}>{'\u20B9'}{order.totalAmount}</Text>
+        <Text style={recentStyles.amount}>{formatMoney(order.totalAmount)}</Text>
         <View style={[recentStyles.statusBadge, { backgroundColor: config.bg }]}>
           <Text style={[recentStyles.statusText, { color: config.color }]}>
             {order.status.replace('_', ' ')}

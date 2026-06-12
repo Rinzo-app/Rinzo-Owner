@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
+import { formatMoney } from '@/lib/money';
 import { useShop, Service } from '@/lib/shop-context';
 
 function ServiceCard({ service, onToggle, onDelete }: {
@@ -27,7 +28,7 @@ function ServiceCard({ service, onToggle, onDelete }: {
           <Text style={[sCardStyles.name, !service.active && sCardStyles.textInactive]}>{service.name}</Text>
           <Text style={sCardStyles.unit}>{service.unit}</Text>
         </View>
-        <Text style={sCardStyles.price}>{'\u20B9'}{service.price}</Text>
+        <Text style={sCardStyles.price}>{formatMoney(service.price)}</Text>
       </View>
 
       <View style={sCardStyles.actions}>

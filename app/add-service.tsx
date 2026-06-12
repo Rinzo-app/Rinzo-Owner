@@ -22,7 +22,10 @@ export default function AddServiceScreen() {
   const existingService = editId ? services.find(s => s.id === editId) : null;
 
   const [name, setName] = useState(existingService?.name || '');
-  const [price, setPrice] = useState(existingService ? String(existingService.price) : '');
+  // Prices are stored in paise; the owner types rupees.
+  const [price, setPrice] = useState(
+    existingService ? String(existingService.price / 100) : '',
+  );
   const [unit, setUnit] = useState(existingService?.unit || 'per kg');
   const [active, setActive] = useState(existingService?.active ?? true);
 
@@ -33,18 +36,20 @@ export default function AddServiceScreen() {
     if (!canSave) return;
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    const pricePaise = Math.round(parseFloat(price) * 100);
+
     if (isEditing && existingService) {
       await updateService({
         ...existingService,
         name: name.trim(),
-        price: parseFloat(price),
+        price: pricePaise,
         unit,
         active,
       });
     } else {
       await addService({
         name: name.trim(),
-        price: parseFloat(price),
+        price: pricePaise,
         unit,
         active,
       });
