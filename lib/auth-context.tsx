@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  sendEmailVerification,
   signOut as fbSignOut,
 } from 'firebase/auth';
 import { isFirebaseConfigured, firebaseReady, getFirebaseAuth } from './firebase';
@@ -29,6 +30,9 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
   error: string | null;
   clearError: () => void;
+  emailVerified: boolean;
+  resendVerification: () => Promise<void>;
+  reloadEmailStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -220,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name }).catch(() => {});
+      sendEmailVerification(cred.user).catch(() => {});
 
       const idToken = await cred.user.getIdToken();
       const registered = await registerWithBackend(idToken, { name, phone, email });
@@ -276,6 +281,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = () => setError(null);
 
+  const resendVerification = async () => {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth?.currentUser) throw new Error('Not authenticated');
+    await sendEmailVerification(auth.currentUser);
+  };
+
+  const reloadEmailStatus = async () => {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth?.currentUser) return;
+    await auth.currentUser.reload();
+    setUser({ ...auth.currentUser });
+  };
+
   const value = useMemo(() => ({
     user,
     token,
@@ -289,6 +309,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile,
     error,
     clearError,
+    emailVerified: !!user?.emailVerified,
+    resendVerification,
+    reloadEmailStatus,
   }), [user, token, isLoading, error, userStatus, refreshProfile]);
 
   return (

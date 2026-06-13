@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   Platform,
+  AppState,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +17,50 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import { formatMoney } from '@/lib/money';
 import { useShop, OrderStatus } from '@/lib/shop-context';
+import { useAuth } from '@/lib/auth-context';
+
+function EmailVerifyBanner() {
+  const { emailVerified, resendVerification, reloadEmailStatus, user } = useAuth();
+  const [state, setState] = React.useState<'idle' | 'sending' | 'sent'>('idle');
+
+  React.useEffect(() => {
+    reloadEmailStatus();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') reloadEmailStatus();
+    });
+    return () => sub.remove();
+  }, [reloadEmailStatus]);
+
+  if (!user || emailVerified) return null;
+
+  const handleResend = async () => {
+    setState('sending');
+    try {
+      await resendVerification();
+      setState('sent');
+    } catch {
+      setState('idle');
+      Alert.alert("Couldn't send", 'Please try again in a moment.');
+    }
+  };
+
+  return (
+    <View style={styles.verifyBanner}>
+      <Ionicons name="mail-unread-outline" size={18} color={Colors.dark.primary} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.verifyTitle}>Verify your email</Text>
+        <Text style={styles.verifyText}>
+          {state === 'sent'
+            ? 'Sent! Tap the link in your inbox, then reopen the app.'
+            : 'Verify your email so you can recover your account if you forget your password.'}
+        </Text>
+      </View>
+      <Pressable onPress={handleResend} disabled={state === 'sending'} style={({ pressed }) => [styles.verifyBtn, pressed && { opacity: 0.7 }]}>
+        <Text style={styles.verifyBtnText}>{state === 'sending' ? '…' : state === 'sent' ? 'Resend' : 'Send'}</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function CapacityMeter({ current, max, percent }: { current: number; max: number; percent: number }) {
   const getColor = () => {
@@ -261,6 +307,8 @@ export default function HomeScreen() {
           <ApprovalBanner status={settings.status} />
         )}
 
+        <EmailVerifyBanner />
+
         <LinearGradient
           colors={['rgba(0, 212, 170, 0.12)', 'rgba(0, 212, 170, 0.04)']}
           style={styles.capacityCard}
@@ -333,6 +381,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   autoRejectText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: Colors.dark.warning },
+  verifyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: Colors.dark.primaryDim,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 170, 0.3)',
+  },
+  verifyTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, color: Colors.dark.text },
+  verifyText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.dark.textSecondary, marginTop: 1 },
+  verifyBtn: { backgroundColor: Colors.dark.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  verifyBtnText: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#0A0A0F' },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 18, color: Colors.dark.text },
