@@ -218,6 +218,11 @@ export async function deleteShopService(serviceId: string): Promise<void> {
   await request("DELETE", `/api/shop/services/${serviceId}`);
 }
 
+/** DELETE /api/auth/me — permanently delete the signed-in account */
+export async function deleteAccount(): Promise<void> {
+  await request("DELETE", "/api/auth/me");
+}
+
 // ── Shop onboarding API ──────────────────────────────────
 
 export interface CreateShopPayload {

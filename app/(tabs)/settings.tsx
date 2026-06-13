@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { useShop } from '@/lib/shop-context';
 import { useAuth } from '@/lib/auth-context';
-import { fetchMyDisputes, type Dispute } from '@/lib/api';
+import { fetchMyDisputes, deleteAccount, type Dispute } from '@/lib/api';
 import { uploadShopImage } from '@/lib/upload';
 
 function disputeBadgeBg(status: string) {
@@ -157,6 +157,29 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign Out', style: 'destructive', onPress: signOut },
       ]);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    const run = async () => {
+      try {
+        await deleteAccount();
+        await signOut();
+      } catch (e: any) {
+        Alert.alert("Couldn't delete", e?.message || 'Please try again.');
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (confirm('Permanently delete your account? Orders in progress must be completed or cancelled first. This cannot be undone.')) run();
+    } else {
+      Alert.alert(
+        'Delete account?',
+        'This permanently deletes your account and shop data and cannot be undone. Orders in progress must be completed or cancelled first.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: run },
+        ],
+      );
     }
   };
 
@@ -394,6 +417,10 @@ export default function SettingsScreen() {
           <Ionicons name="log-out-outline" size={20} color={Colors.dark.error} />
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
+
+        <Pressable style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Text style={styles.deleteText}>Delete account</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -484,6 +511,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 71, 87, 0.2)',
   },
   signOutText: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.dark.error },
+  deleteBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
+  deleteText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: Colors.dark.textTertiary, textDecorationLine: 'underline' },
   disputeEmpty: { padding: 16 },
   disputeEmptyText: { fontFamily: 'Inter_400Regular', fontSize: 14, color: Colors.dark.textTertiary },
   disputeCard: {
