@@ -48,6 +48,7 @@ export interface Service {
   price: number;
   unit: string;
   active: boolean;
+  imageUrl?: string | null;
 }
 
 export type ShopApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
@@ -59,6 +60,8 @@ export interface ShopSettings {
   autoReject: boolean;
   /** How far (km) the shop accepts pickups/deliveries */
   serviceRadiusKm: number;
+  /** Storefront/cover photo URL shown to customers; null if none set. */
+  imageUrl: string | null;
   /** Admin approval status; null until loaded from the backend. */
   status: ShopApprovalStatus | null;
 }
@@ -86,6 +89,7 @@ const DEFAULT_SETTINGS: ShopSettings = {
   dailyCapacity: 20,
   autoReject: false,
   serviceRadiusKm: 5,
+  imageUrl: null,
   status: null,
 };
 

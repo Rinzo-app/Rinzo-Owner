@@ -50,6 +50,12 @@
         {
           "locationWhenInUsePermission": "Rinzo uses your location to set your shop's position so customers and riders can find you."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Rinzo needs photo access so you can add a shop or service photo."
+        }
       ]
     ],
     "experiments": {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,17 @@ import {
   TextInput,
   Pressable,
   Platform,
+  Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
 import { useShop } from '@/lib/shop-context';
+import { uploadServiceImage } from '@/lib/upload';
 
 const UNITS = ['per kg', 'per piece', 'per load', 'per set'];
 
@@ -28,9 +33,42 @@ export default function AddServiceScreen() {
   );
   const [unit, setUnit] = useState(existingService?.unit || 'per kg');
   const [active, setActive] = useState(existingService?.active ?? true);
+  const [imageUrl, setImageUrl] = useState<string | null>(existingService?.imageUrl ?? null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const isEditing = !!existingService;
-  const canSave = name.trim().length > 0 && price.trim().length > 0 && parseFloat(price) > 0;
+  const canSave =
+    name.trim().length > 0 &&
+    price.trim().length > 0 &&
+    parseFloat(price) > 0 &&
+    !uploadingPhoto;
+
+  const handlePickPhoto = async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to add a service photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setUploadingPhoto(true);
+    try {
+      // Editing → key by service id; creating → a fresh timestamp key.
+      const key = existingService?.id ?? `new-${Date.now()}`;
+      const url = await uploadServiceImage(key, result.assets[0].uri);
+      setImageUrl(url);
+    } catch (err: any) {
+      Alert.alert('Upload failed', err?.message || 'Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -45,6 +83,7 @@ export default function AddServiceScreen() {
         price: pricePaise,
         unit,
         active,
+        imageUrl,
       });
     } else {
       await addService({
@@ -52,6 +91,7 @@ export default function AddServiceScreen() {
         price: pricePaise,
         unit,
         active,
+        imageUrl,
       });
     }
     router.back();
@@ -114,6 +154,29 @@ export default function AddServiceScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Photo (optional)</Text>
+          <Pressable
+            style={({ pressed }) => [styles.photoPicker, pressed && { opacity: 0.85 }]}
+            onPress={handlePickPhoto}
+            disabled={uploadingPhoto}
+          >
+            {uploadingPhoto ? (
+              <ActivityIndicator size="small" color={Colors.dark.primary} />
+            ) : imageUrl ? (
+              <>
+                <Image source={{ uri: imageUrl }} style={styles.photoThumb} />
+                <Text style={styles.photoPickerText}>Change photo</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="image-outline" size={22} color={Colors.dark.textTertiary} />
+                <Text style={styles.photoPickerText}>Add a photo</Text>
+              </>
+            )}
+          </Pressable>
         </View>
 
         <Pressable
@@ -179,4 +242,17 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: '#0A0A0F' },
+  photoPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.surfaceBorder,
+  },
+  photoThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: Colors.dark.surfaceElevated },
+  photoPickerText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: Colors.dark.textSecondary },
 });

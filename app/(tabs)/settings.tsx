@@ -9,15 +9,19 @@ import {
   Switch,
   Platform,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useQuery } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { useShop } from '@/lib/shop-context';
 import { useAuth } from '@/lib/auth-context';
 import { fetchMyDisputes, type Dispute } from '@/lib/api';
+import { uploadShopImage } from '@/lib/upload';
 
 function disputeBadgeBg(status: string) {
   switch (status) {
@@ -78,6 +82,7 @@ export default function SettingsScreen() {
   const [radiusValue, setRadiusValue] = useState(String(settings.serviceRadiusKm));
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(settings.shopName);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const disputesQuery = useQuery<Dispute[]>({
     queryKey: ['my-disputes'],
     queryFn: fetchMyDisputes,
@@ -114,6 +119,31 @@ export default function SettingsScreen() {
     if (nameValue.trim().length > 0) {
       updateSettings({ shopName: nameValue.trim() });
       setEditingName(false);
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to set your shop photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setUploadingPhoto(true);
+    try {
+      const url = await uploadShopImage(result.assets[0].uri);
+      await updateSettings({ imageUrl: url });
+    } catch (err: any) {
+      Alert.alert('Upload failed', err?.message || 'Please try again.');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -186,6 +216,42 @@ export default function SettingsScreen() {
               thumbColor={settings.isOpen ? Colors.dark.primary : Colors.dark.textTertiary}
             />
           </SettingRow>
+        </View>
+
+        <Text style={styles.sectionLabel}>STOREFRONT PHOTO</Text>
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.photoWrap, pressed && { opacity: 0.85 }]}
+            onPress={handlePickPhoto}
+            disabled={uploadingPhoto}
+          >
+            {settings.imageUrl ? (
+              <Image source={{ uri: settings.imageUrl }} style={styles.photo} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="image-outline" size={32} color={Colors.dark.textTertiary} />
+                <Text style={styles.photoPlaceholderText}>Add a shop photo</Text>
+              </View>
+            )}
+            <View style={styles.photoOverlay}>
+              {uploadingPhoto ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="camera" size={16} color="#fff" />
+                  <Text style={styles.photoOverlayText}>
+                    {settings.imageUrl ? 'Change photo' : 'Upload'}
+                  </Text>
+                </>
+              )}
+            </View>
+          </Pressable>
+        </View>
+        <View style={styles.infoCard}>
+          <Ionicons name="information-circle" size={18} color={Colors.dark.info} />
+          <Text style={styles.infoText}>
+            This photo appears on your shop card when customers browse. A clear storefront or signage photo builds trust and gets more orders.
+          </Text>
         </View>
 
         <Text style={styles.sectionLabel}>CAPACITY</Text>
@@ -368,6 +434,30 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.primary,
   },
   statusLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, marginRight: 10 },
+  photoWrap: { width: '100%', aspectRatio: 16 / 9, position: 'relative' },
+  photo: { width: '100%', height: '100%' },
+  photoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.dark.surfaceElevated,
+  },
+  photoPlaceholderText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: Colors.dark.textTertiary },
+  photoOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  photoOverlayText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#fff' },
   capacityValue: { fontFamily: 'Inter_700Bold', fontSize: 18, color: Colors.dark.text },
   infoCard: {
     flexDirection: 'row',

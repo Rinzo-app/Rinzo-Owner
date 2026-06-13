@@ -177,6 +177,7 @@ function mapService(raw: any): Service {
     price: raw.price,
     unit: pricingTypeToUnit(raw.pricingType),
     active: raw.isActive ?? true,
+    imageUrl: raw.imageUrl ?? null,
   };
 }
 
@@ -195,6 +196,7 @@ export async function createShopService(
     price: service.price,
     pricingType: unitToPricingType(service.unit),
     isActive: service.active,
+    ...(service.imageUrl !== undefined ? { imageUrl: service.imageUrl } : {}),
   });
   return mapService(data);
 }
@@ -206,6 +208,7 @@ export async function updateShopService(service: Service): Promise<Service> {
     price: service.price,
     pricingType: unitToPricingType(service.unit),
     isActive: service.active,
+    ...(service.imageUrl !== undefined ? { imageUrl: service.imageUrl } : {}),
   });
   return mapService(data);
 }
@@ -240,6 +243,7 @@ function mapSettings(raw: any): ShopSettings {
     dailyCapacity: raw.dailyCapacity ?? 20,
     autoReject: raw.autoRejectEnabled ?? false,
     serviceRadiusKm: raw.serviceRadiusKm ?? 5,
+    imageUrl: raw.imageUrl ?? null,
     status: raw.status ?? null,
   };
 }
@@ -264,6 +268,7 @@ export async function patchShopSettings(
     body.autoRejectEnabled = partial.autoReject;
   if (partial.serviceRadiusKm !== undefined)
     body.serviceRadiusKm = partial.serviceRadiusKm;
+  if (partial.imageUrl !== undefined) body.imageUrl = partial.imageUrl;
 
   const data = await request("PATCH", "/api/shop/settings", body);
   return mapSettings(data);
