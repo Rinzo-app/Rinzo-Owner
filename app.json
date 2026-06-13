@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.rinzo.owner",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
