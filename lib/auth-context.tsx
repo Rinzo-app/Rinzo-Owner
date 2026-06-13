@@ -293,6 +293,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     if (!auth?.currentUser) return;
     await auth.currentUser.reload();
+    // Force a fresh ID token so the backend sees email_verified=true.
+    if (auth.currentUser.emailVerified) {
+      await auth.currentUser.getIdToken(true).catch(() => {});
+    }
     setUser({ ...auth.currentUser });
   };
 
