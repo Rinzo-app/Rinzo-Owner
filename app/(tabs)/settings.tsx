@@ -74,6 +74,8 @@ export default function SettingsScreen() {
   const { signOut, user } = useAuth();
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState(String(settings.dailyCapacity));
+  const [editingRadius, setEditingRadius] = useState(false);
+  const [radiusValue, setRadiusValue] = useState(String(settings.serviceRadiusKm));
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(settings.shopName);
   const disputesQuery = useQuery<Dispute[]>({
@@ -97,6 +99,14 @@ export default function SettingsScreen() {
     if (num > 0 && num <= 999) {
       updateSettings({ dailyCapacity: num });
       setEditingCapacity(false);
+    }
+  };
+
+  const handleSaveRadius = () => {
+    const num = parseInt(radiusValue, 10);
+    if (num >= 1 && num <= 50) {
+      updateSettings({ serviceRadiusKm: num });
+      setEditingRadius(false);
     }
   };
 
@@ -219,6 +229,47 @@ export default function SettingsScreen() {
               thumbColor={settings.autoReject ? Colors.dark.warning : Colors.dark.textTertiary}
             />
           </SettingRow>
+        </View>
+
+        <Text style={styles.sectionLabel}>SERVICE AREA</Text>
+        <View style={styles.card}>
+          <View style={rowStyles.row}>
+            <View style={[rowStyles.iconWrap, { backgroundColor: Colors.dark.primaryDim }]}>
+              <Ionicons name="navigate" size={18} color={Colors.dark.primary} />
+            </View>
+            {editingRadius ? (
+              <View style={styles.editRow}>
+                <TextInput
+                  style={styles.editInput}
+                  value={radiusValue}
+                  onChangeText={setRadiusValue}
+                  keyboardType="number-pad"
+                  autoFocus
+                  onSubmitEditing={handleSaveRadius}
+                  returnKeyType="done"
+                  maxLength={2}
+                />
+                <Pressable onPress={handleSaveRadius}>
+                  <Ionicons name="checkmark-circle" size={24} color={Colors.dark.primary} />
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <Text style={rowStyles.label}>Delivery Radius</Text>
+                <Text style={styles.capacityValue}>{settings.serviceRadiusKm} km</Text>
+                <Pressable onPress={() => { setRadiusValue(String(settings.serviceRadiusKm)); setEditingRadius(true); }} style={{ marginLeft: 8 }}>
+                  <Ionicons name="pencil" size={18} color={Colors.dark.textSecondary} />
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Ionicons name="information-circle" size={18} color={Colors.dark.info} />
+          <Text style={styles.infoText}>
+            Customers more than {settings.serviceRadiusKm} km away won't see your shop or be able to order. Larger radius = wider reach but higher delivery fees for distant customers.
+          </Text>
         </View>
 
         {settings.autoReject && (

@@ -57,6 +57,8 @@ export interface ShopSettings {
   isOpen: boolean;
   dailyCapacity: number;
   autoReject: boolean;
+  /** How far (km) the shop accepts pickups/deliveries */
+  serviceRadiusKm: number;
   /** Admin approval status; null until loaded from the backend. */
   status: ShopApprovalStatus | null;
 }
@@ -83,6 +85,7 @@ const DEFAULT_SETTINGS: ShopSettings = {
   isOpen: true,
   dailyCapacity: 20,
   autoReject: false,
+  serviceRadiusKm: 5,
   status: null,
 };
 

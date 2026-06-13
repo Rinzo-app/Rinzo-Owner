@@ -238,6 +238,7 @@ function mapSettings(raw: any): ShopSettings {
     isOpen: raw.isOpen ?? true,
     dailyCapacity: raw.dailyCapacity ?? 20,
     autoReject: raw.autoRejectEnabled ?? false,
+    serviceRadiusKm: raw.serviceRadiusKm ?? 5,
     status: raw.status ?? null,
   };
 }
@@ -260,6 +261,8 @@ export async function patchShopSettings(
     body.dailyCapacity = partial.dailyCapacity;
   if (partial.autoReject !== undefined)
     body.autoRejectEnabled = partial.autoReject;
+  if (partial.serviceRadiusKm !== undefined)
+    body.serviceRadiusKm = partial.serviceRadiusKm;
 
   const data = await request("PATCH", "/api/shop/settings", body);
   return mapSettings(data);
