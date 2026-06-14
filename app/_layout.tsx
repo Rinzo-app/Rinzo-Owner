@@ -20,6 +20,7 @@ function RootLayoutNav() {
       <Stack.Screen name="login" />
       <Stack.Screen name="status-blocked" />
       <Stack.Screen name="create-shop" />
+      <Stack.Screen name="business" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="order/[id]"

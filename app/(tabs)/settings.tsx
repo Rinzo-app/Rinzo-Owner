@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
+import { router } from 'expo-router';
 import { useShop } from '@/lib/shop-context';
 import { useAuth } from '@/lib/auth-context';
 import { fetchMyDisputes, deleteAccount, type Dispute } from '@/lib/api';
@@ -369,6 +370,22 @@ export default function SettingsScreen() {
             </Text>
           </View>
         )}
+
+        <Text style={styles.sectionLabel}>PAYOUTS & DOCUMENTS</Text>
+        <View style={styles.card}>
+          <Pressable style={rowStyles.row} onPress={() => router.push('/business' as any)}>
+            <View style={[rowStyles.iconWrap, { backgroundColor: Colors.dark.primaryDim }]}>
+              <Ionicons name="card" size={18} color={Colors.dark.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={rowStyles.label}>Payout & business documents</Text>
+              <Text style={styles.emailHint}>
+                {settings.earnings ? `${'₹'}${(settings.earnings.balance / 100).toFixed(0)} payable` : 'Bank/UPI + KYC'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.dark.textTertiary} />
+          </Pressable>
+        </View>
 
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.card}>

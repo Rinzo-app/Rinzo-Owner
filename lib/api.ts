@@ -250,6 +250,18 @@ function mapSettings(raw: any): ShopSettings {
     serviceRadiusKm: raw.serviceRadiusKm ?? 5,
     imageUrl: raw.imageUrl ?? null,
     status: raw.status ?? null,
+    payoutMethod: raw.payoutMethod ?? null,
+    bankAccountName: raw.bankAccountName ?? null,
+    bankAccountNumber: raw.bankAccountNumber ?? null,
+    bankIfsc: raw.bankIfsc ?? null,
+    upiId: raw.upiId ?? null,
+    panNumber: raw.panNumber ?? null,
+    gstNumber: raw.gstNumber ?? null,
+    panImageUrl: raw.panImageUrl ?? null,
+    licenseImageUrl: raw.licenseImageUrl ?? null,
+    documentsStatus: raw.documentsStatus ?? "NOT_SUBMITTED",
+    documentsRejectionReason: raw.documentsRejectionReason ?? null,
+    earnings: raw.earnings ?? null,
   };
 }
 
@@ -274,7 +286,21 @@ export async function patchShopSettings(
   if (partial.serviceRadiusKm !== undefined)
     body.serviceRadiusKm = partial.serviceRadiusKm;
   if (partial.imageUrl !== undefined) body.imageUrl = partial.imageUrl;
+  for (const f of ["payoutMethod", "bankAccountName", "bankAccountNumber", "bankIfsc", "upiId"] as const) {
+    if (partial[f] !== undefined) body[f] = partial[f];
+  }
 
   const data = await request("PATCH", "/api/shop/settings", body);
+  return mapSettings(data);
+}
+
+/** PATCH /api/shop/documents — submit business KYC (PAN/GST/licence) */
+export async function submitShopDocuments(payload: {
+  panNumber?: string;
+  gstNumber?: string;
+  panImageUrl?: string;
+  licenseImageUrl?: string;
+}): Promise<ShopSettings> {
+  const data = await request("PATCH", "/api/shop/documents", payload);
   return mapSettings(data);
 }

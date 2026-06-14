@@ -28,6 +28,12 @@ export async function uploadShopImage(localUri: string): Promise<string> {
   return uploadImage(`shop-images/${uid}/shop.jpg`, localUri);
 }
 
+/** Business KYC doc: kind = "pan" | "license". Stored under the owner's uid. */
+export async function uploadShopDoc(kind: string, localUri: string): Promise<string> {
+  const uid = getFirebaseAuth()?.currentUser?.uid;
+  return uploadImage(`shop-docs/${uid}/${kind}.jpg`, localUri);
+}
+
 /**
  * serviceKey is the service id when editing, or a fresh timestamp when
  * creating (the service has no id yet). Either way it stays within the

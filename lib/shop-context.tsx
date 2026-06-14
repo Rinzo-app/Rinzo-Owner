@@ -64,6 +64,21 @@ export interface ShopSettings {
   imageUrl: string | null;
   /** Admin approval status; null until loaded from the backend. */
   status: ShopApprovalStatus | null;
+  // ── Payout details ──
+  payoutMethod: 'BANK' | 'UPI' | null;
+  bankAccountName: string | null;
+  bankAccountNumber: string | null;
+  bankIfsc: string | null;
+  upiId: string | null;
+  // ── Business KYC ──
+  panNumber: string | null;
+  gstNumber: string | null;
+  panImageUrl: string | null;
+  licenseImageUrl: string | null;
+  documentsStatus: 'NOT_SUBMITTED' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+  documentsRejectionReason: string | null;
+  // ── Earnings/balance (read-only) ──
+  earnings: { earned: number; paidOut: number; balance: number } | null;
 }
 
 interface ShopContextValue {
@@ -91,6 +106,18 @@ const DEFAULT_SETTINGS: ShopSettings = {
   serviceRadiusKm: 5,
   imageUrl: null,
   status: null,
+  payoutMethod: null,
+  bankAccountName: null,
+  bankAccountNumber: null,
+  bankIfsc: null,
+  upiId: null,
+  panNumber: null,
+  gstNumber: null,
+  panImageUrl: null,
+  licenseImageUrl: null,
+  documentsStatus: 'NOT_SUBMITTED',
+  documentsRejectionReason: null,
+  earnings: null,
 };
 
 const ShopContext = createContext<ShopContextValue | null>(null);
