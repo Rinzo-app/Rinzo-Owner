@@ -23,6 +23,7 @@ import { useShop } from '@/lib/shop-context';
 import { useAuth } from '@/lib/auth-context';
 import { fetchMyDisputes, deleteAccount, type Dispute } from '@/lib/api';
 import { uploadShopImage } from '@/lib/upload';
+import { formatTime12h, to12hParts, from12hParts, type Period } from '@/lib/time';
 
 function disputeBadgeBg(status: string) {
   switch (status) {
@@ -73,6 +74,88 @@ const rowStyles = StyleSheet.create({
   right: { flexDirection: 'row', alignItems: 'center' },
 });
 
+// ── 12-hour time field (hour : minute  AM/PM toggle) ──
+function TimeField12h({
+  label,
+  parts,
+  onChange,
+  autoFocus,
+}: {
+  label: string;
+  parts: { hour: string; minute: string; period: Period };
+  onChange: (p: { hour: string; minute: string; period: Period }) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <View style={hoursStyles.fieldRow}>
+      <Text style={hoursStyles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={hoursStyles.timeInput}
+        value={parts.hour}
+        onChangeText={(t) => onChange({ ...parts, hour: t.replace(/\D/g, '').slice(0, 2) })}
+        keyboardType="number-pad"
+        maxLength={2}
+        placeholder="8"
+        placeholderTextColor={Colors.dark.textTertiary}
+        autoFocus={autoFocus}
+      />
+      <Text style={hoursStyles.colon}>:</Text>
+      <TextInput
+        style={hoursStyles.timeInput}
+        value={parts.minute}
+        onChangeText={(t) => onChange({ ...parts, minute: t.replace(/\D/g, '').slice(0, 2) })}
+        keyboardType="number-pad"
+        maxLength={2}
+        placeholder="00"
+        placeholderTextColor={Colors.dark.textTertiary}
+      />
+      <Pressable
+        onPress={() => onChange({ ...parts, period: parts.period === 'AM' ? 'PM' : 'AM' })}
+        style={hoursStyles.periodToggle}
+      >
+        <Text style={hoursStyles.periodText}>{parts.period}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const hoursStyles = StyleSheet.create({
+  editor: { flex: 1, gap: 10 },
+  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fieldLabel: { fontFamily: 'Inter_500Medium', fontSize: 14, color: Colors.dark.textSecondary, width: 48 },
+  timeInput: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: Colors.dark.text,
+    backgroundColor: Colors.dark.surfaceElevated,
+    paddingVertical: 8,
+    borderRadius: 8,
+    width: 48,
+    textAlign: 'center',
+  },
+  colon: { fontFamily: 'Inter_700Bold', fontSize: 16, color: Colors.dark.text },
+  periodToggle: {
+    backgroundColor: Colors.dark.primaryDim,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 2,
+  },
+  periodText: { fontFamily: 'Inter_700Bold', fontSize: 14, color: Colors.dark.primary, letterSpacing: 0.5 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 },
+  cancelText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: Colors.dark.textSecondary },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.dark.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  saveText: { fontFamily: 'Inter_700Bold', fontSize: 14, color: Colors.dark.background },
+});
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useShop();
@@ -85,8 +168,9 @@ export default function SettingsScreen() {
   const [nameValue, setNameValue] = useState(settings.shopName);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [editingHours, setEditingHours] = useState(false);
-  const [openValue, setOpenValue] = useState(settings.openTime);
-  const [closeValue, setCloseValue] = useState(settings.closeTime);
+  // Hours are stored as 24h "HH:MM" but edited/shown as 12-hour AM/PM.
+  const [openParts, setOpenParts] = useState(() => to12hParts(settings.openTime));
+  const [closeParts, setCloseParts] = useState(() => to12hParts(settings.closeTime));
   const disputesQuery = useQuery<Dispute[]>({
     queryKey: ['my-disputes'],
     queryFn: fetchMyDisputes,
@@ -127,12 +211,13 @@ export default function SettingsScreen() {
   };
 
   const handleSaveHours = () => {
-    const re = /^([01]\d|2[0-3]):[0-5]\d$/;
-    if (!re.test(openValue) || !re.test(closeValue)) {
-      Alert.alert('Invalid time', 'Use 24-hour HH:MM, e.g. 08:00 and 20:00.');
+    const open = from12hParts(openParts.hour, openParts.minute, openParts.period);
+    const close = from12hParts(closeParts.hour, closeParts.minute, closeParts.period);
+    if (!open || !close) {
+      Alert.alert('Invalid time', 'Enter an hour 1–12 and minute 00–59 for both.');
       return;
     }
-    updateSettings({ openTime: openValue, closeTime: closeValue });
+    updateSettings({ openTime: open, closeTime: close });
     setEditingHours(false);
   };
 
@@ -262,34 +347,24 @@ export default function SettingsScreen() {
               <Ionicons name="time" size={18} color={Colors.dark.info} />
             </View>
             {editingHours ? (
-              <View style={styles.editRow}>
-                <TextInput
-                  style={[styles.editInput, { flex: 0, width: 70, textAlign: 'center' }]}
-                  value={openValue}
-                  onChangeText={setOpenValue}
-                  placeholder="08:00"
-                  placeholderTextColor={Colors.dark.textTertiary}
-                  maxLength={5}
-                  autoFocus
-                />
-                <Text style={{ color: Colors.dark.textSecondary }}>to</Text>
-                <TextInput
-                  style={[styles.editInput, { flex: 0, width: 70, textAlign: 'center' }]}
-                  value={closeValue}
-                  onChangeText={setCloseValue}
-                  placeholder="20:00"
-                  placeholderTextColor={Colors.dark.textTertiary}
-                  maxLength={5}
-                />
-                <Pressable onPress={handleSaveHours}>
-                  <Ionicons name="checkmark-circle" size={24} color={Colors.dark.primary} />
-                </Pressable>
+              <View style={hoursStyles.editor}>
+                <TimeField12h label="Open" parts={openParts} onChange={setOpenParts} autoFocus />
+                <TimeField12h label="Close" parts={closeParts} onChange={setCloseParts} />
+                <View style={hoursStyles.actions}>
+                  <Pressable onPress={() => setEditingHours(false)}>
+                    <Text style={hoursStyles.cancelText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable onPress={handleSaveHours} style={hoursStyles.saveBtn}>
+                    <Ionicons name="checkmark" size={16} color={Colors.dark.background} />
+                    <Text style={hoursStyles.saveText}>Save</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : (
               <>
                 <Text style={rowStyles.label}>Open hours</Text>
-                <Text style={styles.capacityValue}>{settings.openTime} – {settings.closeTime}</Text>
-                <Pressable onPress={() => { setOpenValue(settings.openTime); setCloseValue(settings.closeTime); setEditingHours(true); }} style={{ marginLeft: 8 }}>
+                <Text style={styles.capacityValue}>{formatTime12h(settings.openTime)} – {formatTime12h(settings.closeTime)}</Text>
+                <Pressable onPress={() => { setOpenParts(to12hParts(settings.openTime)); setCloseParts(to12hParts(settings.closeTime)); setEditingHours(true); }} style={{ marginLeft: 8 }}>
                   <Ionicons name="pencil" size={18} color={Colors.dark.textSecondary} />
                 </Pressable>
               </>
