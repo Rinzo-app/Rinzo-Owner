@@ -270,6 +270,11 @@ export default function OrderDetailScreen() {
   };
 
   const config = STATUS_CONFIG[order.status as OrderStatus];
+  // The UI "IN_WASH" status covers two backend states: the rider is still
+  // bringing the laundry (PICKED_UP_FROM_CUSTOMER) vs it's actually at the
+  // shop (AT_SHOP). Weighing/marking ready is only valid once AT_SHOP.
+  const atShop = order.backendStatus === 'AT_SHOP';
+  const incoming = order.status === 'IN_WASH' && !atShop;
   const date = new Date(order.createdAt);
   const dateStr = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -294,9 +299,9 @@ export default function OrderDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.statusHeader, { backgroundColor: config.bg }]}>
-          <Ionicons name={config.icon as any} size={28} color={config.color} />
+          <Ionicons name={(incoming ? 'bicycle' : config.icon) as any} size={28} color={config.color} />
           <View style={styles.statusHeaderInfo}>
-            <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
+            <Text style={[styles.statusLabel, { color: config.color }]}>{incoming ? 'Incoming' : config.label}</Text>
             <Text style={styles.orderId}>#{order.id.slice(-6).toUpperCase()}</Text>
           </View>
         </View>
@@ -400,7 +405,17 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
-        {order.status === 'IN_WASH' && (
+        {incoming && (
+          <View style={styles.incomingNote}>
+            <Ionicons name="bicycle-outline" size={18} color={Colors.dark.info} />
+            <Text style={styles.incomingNoteText}>
+              The rider has collected the laundry and is bringing it to your shop.
+              You can weigh and process it once it arrives.
+            </Text>
+          </View>
+        )}
+
+        {order.status === 'IN_WASH' && atShop && (
           <>
             <Pressable
               style={({ pressed }) => [styles.weighBtn, pressed && { opacity: 0.85 }]}
@@ -728,6 +743,24 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   weighBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.dark.primary },
+  incomingNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: Colors.dark.infoDim,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+  },
+  incomingNoteText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.dark.text,
+    lineHeight: 18,
+  },
   weighHint: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,

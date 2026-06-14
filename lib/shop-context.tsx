@@ -33,6 +33,9 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   status: OrderStatus;
+  /** Raw backend status — distinguishes sub-states the UI status collapses
+   *  (e.g. PICKED_UP_FROM_CUSTOMER vs AT_SHOP, both shown as IN_WASH). */
+  backendStatus?: string;
   createdAt: string;
   updatedAt: string;
   notes?: string;

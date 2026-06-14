@@ -43,6 +43,7 @@ function mapOrder(raw: any): Order {
     items,
     totalAmount: raw.totalAmount ?? 0,
     status: mapStatus(raw.status),
+    backendStatus: raw.status,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt || raw.createdAt,
     notes: raw.notes,
