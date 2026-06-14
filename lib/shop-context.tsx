@@ -60,6 +60,9 @@ export interface ShopSettings {
   autoReject: boolean;
   /** How far (km) the shop accepts pickups/deliveries */
   serviceRadiusKm: number;
+  /** Opening/closing time, HH:MM (24h). */
+  openTime: string;
+  closeTime: string;
   /** Storefront/cover photo URL shown to customers; null if none set. */
   imageUrl: string | null;
   /** Admin approval status; null until loaded from the backend. */
@@ -104,6 +107,8 @@ const DEFAULT_SETTINGS: ShopSettings = {
   dailyCapacity: 20,
   autoReject: false,
   serviceRadiusKm: 5,
+  openTime: '08:00',
+  closeTime: '20:00',
   imageUrl: null,
   status: null,
   payoutMethod: null,

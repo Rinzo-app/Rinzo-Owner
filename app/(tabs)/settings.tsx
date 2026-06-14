@@ -84,6 +84,9 @@ export default function SettingsScreen() {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(settings.shopName);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [editingHours, setEditingHours] = useState(false);
+  const [openValue, setOpenValue] = useState(settings.openTime);
+  const [closeValue, setCloseValue] = useState(settings.closeTime);
   const disputesQuery = useQuery<Dispute[]>({
     queryKey: ['my-disputes'],
     queryFn: fetchMyDisputes,
@@ -121,6 +124,16 @@ export default function SettingsScreen() {
       updateSettings({ shopName: nameValue.trim() });
       setEditingName(false);
     }
+  };
+
+  const handleSaveHours = () => {
+    const re = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!re.test(openValue) || !re.test(closeValue)) {
+      Alert.alert('Invalid time', 'Use 24-hour HH:MM, e.g. 08:00 and 20:00.');
+      return;
+    }
+    updateSettings({ openTime: openValue, closeTime: closeValue });
+    setEditingHours(false);
   };
 
   const handlePickPhoto = async () => {
@@ -240,6 +253,48 @@ export default function SettingsScreen() {
               thumbColor={settings.isOpen ? Colors.dark.primary : Colors.dark.textTertiary}
             />
           </SettingRow>
+        </View>
+
+        <Text style={styles.sectionLabel}>HOURS</Text>
+        <View style={styles.card}>
+          <View style={rowStyles.row}>
+            <View style={[rowStyles.iconWrap, { backgroundColor: Colors.dark.infoDim }]}>
+              <Ionicons name="time" size={18} color={Colors.dark.info} />
+            </View>
+            {editingHours ? (
+              <View style={styles.editRow}>
+                <TextInput
+                  style={[styles.editInput, { flex: 0, width: 70, textAlign: 'center' }]}
+                  value={openValue}
+                  onChangeText={setOpenValue}
+                  placeholder="08:00"
+                  placeholderTextColor={Colors.dark.textTertiary}
+                  maxLength={5}
+                  autoFocus
+                />
+                <Text style={{ color: Colors.dark.textSecondary }}>to</Text>
+                <TextInput
+                  style={[styles.editInput, { flex: 0, width: 70, textAlign: 'center' }]}
+                  value={closeValue}
+                  onChangeText={setCloseValue}
+                  placeholder="20:00"
+                  placeholderTextColor={Colors.dark.textTertiary}
+                  maxLength={5}
+                />
+                <Pressable onPress={handleSaveHours}>
+                  <Ionicons name="checkmark-circle" size={24} color={Colors.dark.primary} />
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <Text style={rowStyles.label}>Open hours</Text>
+                <Text style={styles.capacityValue}>{settings.openTime} – {settings.closeTime}</Text>
+                <Pressable onPress={() => { setOpenValue(settings.openTime); setCloseValue(settings.closeTime); setEditingHours(true); }} style={{ marginLeft: 8 }}>
+                  <Ionicons name="pencil" size={18} color={Colors.dark.textSecondary} />
+                </Pressable>
+              </>
+            )}
+          </View>
         </View>
 
         <Text style={styles.sectionLabel}>STOREFRONT PHOTO</Text>
