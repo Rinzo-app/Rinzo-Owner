@@ -249,6 +249,7 @@ function mapSettings(raw: any): ShopSettings {
     dailyCapacity: raw.dailyCapacity ?? 20,
     autoReject: raw.autoRejectEnabled ?? false,
     serviceRadiusKm: raw.serviceRadiusKm ?? 5,
+    minOrder: raw.minOrder ?? 0,
     openTime: raw.openTime ?? "08:00",
     closeTime: raw.closeTime ?? "20:00",
     lat: raw.lat ?? null,
@@ -290,6 +291,7 @@ export async function patchShopSettings(
     body.autoRejectEnabled = partial.autoReject;
   if (partial.serviceRadiusKm !== undefined)
     body.serviceRadiusKm = partial.serviceRadiusKm;
+  if (partial.minOrder !== undefined) body.minOrder = partial.minOrder;
   if (partial.imageUrl !== undefined) body.imageUrl = partial.imageUrl;
   if (partial.openTime !== undefined) body.openTime = partial.openTime;
   if (partial.closeTime !== undefined) body.closeTime = partial.closeTime;

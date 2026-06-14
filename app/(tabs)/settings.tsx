@@ -164,6 +164,8 @@ export default function SettingsScreen() {
   const { signOut, user } = useAuth();
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState(String(settings.dailyCapacity));
+  const [editingMinOrder, setEditingMinOrder] = useState(false);
+  const [minOrderValue, setMinOrderValue] = useState(String(Math.round((settings.minOrder ?? 0) / 100)));
   const [editingRadius, setEditingRadius] = useState(false);
   const [radiusValue, setRadiusValue] = useState(String(settings.serviceRadiusKm));
   const [editingName, setEditingName] = useState(false);
@@ -208,6 +210,14 @@ export default function SettingsScreen() {
   const handleToggleAutoReject = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updateSettings({ autoReject: !settings.autoReject });
+  };
+
+  const handleSaveMinOrder = () => {
+    const rupees = parseInt(minOrderValue, 10);
+    if (Number.isFinite(rupees) && rupees >= 0 && rupees <= 10000) {
+      updateSettings({ minOrder: rupees * 100 });
+      setEditingMinOrder(false);
+    }
   };
 
   const handleSaveCapacity = () => {
@@ -458,6 +468,40 @@ export default function SettingsScreen() {
                 <Text style={rowStyles.label}>Daily Capacity</Text>
                 <Text style={styles.capacityValue}>{settings.dailyCapacity}</Text>
                 <Pressable onPress={() => { setCapacityValue(String(settings.dailyCapacity)); setEditingCapacity(true); }} style={{ marginLeft: 8 }}>
+                  <Ionicons name="pencil" size={18} color={Colors.dark.textSecondary} />
+                </Pressable>
+              </>
+            )}
+          </View>
+
+          <View style={rowStyles.row}>
+            <View style={[rowStyles.iconWrap, { backgroundColor: Colors.dark.primaryDim }]}>
+              <Ionicons name="cash-outline" size={18} color={Colors.dark.primary} />
+            </View>
+            {editingMinOrder ? (
+              <View style={styles.editRow}>
+                <Text style={{ color: Colors.dark.textSecondary }}>₹</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={minOrderValue}
+                  onChangeText={setMinOrderValue}
+                  keyboardType="number-pad"
+                  autoFocus
+                  onSubmitEditing={handleSaveMinOrder}
+                  returnKeyType="done"
+                  maxLength={5}
+                />
+                <Pressable onPress={handleSaveMinOrder}>
+                  <Ionicons name="checkmark-circle" size={24} color={Colors.dark.primary} />
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <Text style={rowStyles.label}>Minimum order</Text>
+                <Text style={styles.capacityValue}>
+                  {settings.minOrder > 0 ? `₹${Math.round(settings.minOrder / 100)}` : 'None'}
+                </Text>
+                <Pressable onPress={() => { setMinOrderValue(String(Math.round((settings.minOrder ?? 0) / 100))); setEditingMinOrder(true); }} style={{ marginLeft: 8 }}>
                   <Ionicons name="pencil" size={18} color={Colors.dark.textSecondary} />
                 </Pressable>
               </>

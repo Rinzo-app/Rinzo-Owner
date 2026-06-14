@@ -63,6 +63,8 @@ export interface ShopSettings {
   autoReject: boolean;
   /** How far (km) the shop accepts pickups/deliveries */
   serviceRadiusKm: number;
+  /** Minimum order value in paise (0 = none). */
+  minOrder: number;
   /** Opening/closing time, HH:MM (24h). */
   openTime: string;
   closeTime: string;
@@ -113,6 +115,7 @@ const DEFAULT_SETTINGS: ShopSettings = {
   dailyCapacity: 20,
   autoReject: false,
   serviceRadiusKm: 5,
+  minOrder: 0,
   openTime: '08:00',
   closeTime: '20:00',
   lat: null,
