@@ -20,7 +20,7 @@ import { useShop, OrderStatus } from '@/lib/shop-context';
 import { useAuth } from '@/lib/auth-context';
 
 function EmailVerifyBanner() {
-  const { emailVerified, resendVerification, reloadEmailStatus, user } = useAuth();
+  const { emailVerified, emailChecked, resendVerification, reloadEmailStatus, user } = useAuth();
   const [state, setState] = React.useState<'idle' | 'sending' | 'sent'>('idle');
 
   React.useEffect(() => {
@@ -31,7 +31,7 @@ function EmailVerifyBanner() {
     return () => sub.remove();
   }, [reloadEmailStatus]);
 
-  if (!user || emailVerified) return null;
+  if (!user || !emailChecked || emailVerified) return null;
 
   const handleResend = async () => {
     setState('sending');

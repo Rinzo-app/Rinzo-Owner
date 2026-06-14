@@ -251,6 +251,8 @@ function mapSettings(raw: any): ShopSettings {
     serviceRadiusKm: raw.serviceRadiusKm ?? 5,
     openTime: raw.openTime ?? "08:00",
     closeTime: raw.closeTime ?? "20:00",
+    lat: raw.lat ?? null,
+    lng: raw.lng ?? null,
     imageUrl: raw.imageUrl ?? null,
     status: raw.status ?? null,
     payoutMethod: raw.payoutMethod ?? null,
@@ -291,6 +293,8 @@ export async function patchShopSettings(
   if (partial.imageUrl !== undefined) body.imageUrl = partial.imageUrl;
   if (partial.openTime !== undefined) body.openTime = partial.openTime;
   if (partial.closeTime !== undefined) body.closeTime = partial.closeTime;
+  if (partial.lat != null) body.latitude = partial.lat;
+  if (partial.lng != null) body.longitude = partial.lng;
   for (const f of ["payoutMethod", "bankAccountName", "bankAccountNumber", "bankIfsc", "upiId"] as const) {
     if (partial[f] !== undefined) body[f] = partial[f];
   }

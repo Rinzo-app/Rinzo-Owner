@@ -66,6 +66,9 @@ export interface ShopSettings {
   /** Opening/closing time, HH:MM (24h). */
   openTime: string;
   closeTime: string;
+  /** Shop GPS location (how customers/riders find the shop). */
+  lat: number | null;
+  lng: number | null;
   /** Storefront/cover photo URL shown to customers; null if none set. */
   imageUrl: string | null;
   /** Admin approval status; null until loaded from the backend. */
@@ -112,6 +115,8 @@ const DEFAULT_SETTINGS: ShopSettings = {
   serviceRadiusKm: 5,
   openTime: '08:00',
   closeTime: '20:00',
+  lat: null,
+  lng: null,
   imageUrl: null,
   status: null,
   payoutMethod: null,

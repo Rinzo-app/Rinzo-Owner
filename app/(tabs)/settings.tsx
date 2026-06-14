@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import { getCurrentPosition } from '@/lib/get-position';
 import { useQuery } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { router } from 'expo-router';
@@ -167,6 +169,7 @@ export default function SettingsScreen() {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(settings.shopName);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [locatingShop, setLocatingShop] = useState(false);
   const [editingHours, setEditingHours] = useState(false);
   // Hours are stored as 24h "HH:MM" but edited/shown as 12-hour AM/PM.
   const [openParts, setOpenParts] = useState(() => to12hParts(settings.openTime));
@@ -176,6 +179,26 @@ export default function SettingsScreen() {
     queryFn: fetchMyDisputes,
     staleTime: 30_000,
   });
+
+  const handleUpdateLocation = async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLocatingShop(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location needed', 'Allow location access to update your shop position.');
+        return;
+      }
+      const pos = await getCurrentPosition();
+      await updateSettings({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Location updated', 'Your shop location has been saved. Stand inside the shop for the most accurate position.');
+    } catch {
+      Alert.alert('Location failed', 'Could not get your location. Make sure GPS is on and try again.');
+    } finally {
+      setLocatingShop(false);
+    }
+  };
 
   const handleToggleOpen = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -501,6 +524,40 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        <Text style={styles.sectionLabel}>SHOP LOCATION</Text>
+        <View style={styles.card}>
+          <View style={rowStyles.row}>
+            <View style={[rowStyles.iconWrap, { backgroundColor: Colors.dark.primaryDim }]}>
+              <Ionicons name="location" size={18} color={Colors.dark.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={rowStyles.label}>Map location</Text>
+              <Text style={styles.emailHint}>
+                {settings.lat != null && settings.lng != null
+                  ? `${settings.lat.toFixed(4)}, ${settings.lng.toFixed(4)}`
+                  : 'Not set'}
+              </Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.locationBtn, pressed && { opacity: 0.85 }]}
+              onPress={handleUpdateLocation}
+              disabled={locatingShop}
+            >
+              {locatingShop ? (
+                <ActivityIndicator size="small" color={Colors.dark.primary} />
+              ) : (
+                <Text style={styles.locationBtnText}>Update</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+        <View style={styles.infoCard}>
+          <Ionicons name="information-circle" size={18} color={Colors.dark.info} />
+          <Text style={styles.infoText}>
+            This is the point customers and riders navigate to. Stand inside your shop and tap Update to set it accurately.
+          </Text>
+        </View>
+
         <Text style={styles.sectionLabel}>PAYOUTS & DOCUMENTS</Text>
         <View style={styles.card}>
           <Pressable style={rowStyles.row} onPress={() => router.push('/business' as any)}>
@@ -645,6 +702,17 @@ const styles = StyleSheet.create({
   },
   infoText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.dark.info, flex: 1, lineHeight: 20 },
   emailHint: { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.dark.textTertiary },
+  locationBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: Colors.dark.primaryDim,
+    borderWidth: 1,
+    borderColor: Colors.dark.primary,
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  locationBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.dark.primary },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',

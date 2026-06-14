@@ -33,6 +33,9 @@ interface AuthContextValue {
   error: string | null;
   clearError: () => void;
   emailVerified: boolean;
+  /** False until the verification status is confirmed — avoids the
+   *  "verify email" banner flashing before a stale token is refreshed. */
+  emailChecked: boolean;
   resendVerification: () => Promise<void>;
   reloadEmailStatus: () => Promise<void>;
 }
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
+  const [emailChecked, setEmailChecked] = useState(false);
   const appState = useRef(AppState.currentState);
   // True while signUp() runs. createUserWithEmailAndPassword fires
   // onAuthStateChanged immediately, which would fetch /api/auth/me
@@ -307,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await auth.currentUser.getIdToken(true).catch(() => {});
     }
     setUser({ ...auth.currentUser });
+    setEmailChecked(true);
   };
 
   const value = useMemo(() => ({
@@ -324,9 +329,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     clearError,
     emailVerified: !!user?.emailVerified,
+    emailChecked,
     resendVerification,
     reloadEmailStatus,
-  }), [user, token, isLoading, error, userStatus, refreshProfile]);
+  }), [user, token, isLoading, error, userStatus, refreshProfile, emailChecked]);
 
   return (
     <AuthContext.Provider value={value}>
