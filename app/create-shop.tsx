@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  AppState,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,9 +19,37 @@ import { useQueryClient } from '@tanstack/react-query';
 import Colors from '@/constants/colors';
 import { createShop, ApiError } from '@/lib/api';
 import { getCurrentPosition } from '@/lib/get-position';
+import { useAuth } from '@/lib/auth-context';
 
 export default function CreateShopScreen() {
   const queryClient = useQueryClient();
+  const { user, emailVerified, resendVerification, reloadEmailStatus } = useAuth();
+  const [verifyState, setVerifyState] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+  React.useEffect(() => {
+    reloadEmailStatus();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') reloadEmailStatus();
+    });
+    return () => sub.remove();
+  }, [reloadEmailStatus]);
+
+  const handleResend = async () => {
+    setVerifyState('sending');
+    try {
+      await resendVerification();
+      setVerifyState('sent');
+    } catch (e: any) {
+      setVerifyState('idle');
+      const code = e?.code || '';
+      Alert.alert(
+        "Couldn't send",
+        code === 'auth/too-many-requests'
+          ? 'Too many attempts. Wait a few minutes, then check your inbox — an email may already be on its way.'
+          : 'Please try again in a moment.',
+      );
+    }
+  };
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,6 +66,7 @@ export default function CreateShopScreen() {
     phoneValid &&
     address.trim().length > 0 &&
     coords !== null &&
+    emailVerified &&
     !submitting;
 
   const captureLocation = async () => {
@@ -105,6 +135,38 @@ export default function CreateShopScreen() {
       </View>
 
       <View style={styles.form}>
+        {!emailVerified && (
+          <View style={styles.verifyCard}>
+            <View style={styles.verifyRow}>
+              <Ionicons name="mail-unread-outline" size={20} color={Colors.dark.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.verifyTitle}>Verify your email first</Text>
+                <Text style={styles.verifyText}>
+                  {verifyState === 'sent'
+                    ? `Sent to ${user?.email ?? 'your email'}. Open the link, then come back — check spam too.`
+                    : `We'll email a verification link to ${user?.email ?? 'your email'}. Tap it, then return here.`}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.verifyBtn, pressed && { opacity: 0.85 }]}
+              onPress={handleResend}
+              disabled={verifyState === 'sending'}
+            >
+              {verifyState === 'sending' ? (
+                <ActivityIndicator size="small" color="#0A0A0F" />
+              ) : (
+                <Text style={styles.verifyBtnText}>
+                  {verifyState === 'sent' ? 'Resend email' : 'Send verification email'}
+                </Text>
+              )}
+            </Pressable>
+            <Pressable onPress={reloadEmailStatus} style={{ alignSelf: 'center', paddingVertical: 6 }}>
+              <Text style={styles.verifyRefresh}>I've verified — refresh</Text>
+            </Pressable>
+          </View>
+        )}
+
         <View style={styles.field}>
           <Text style={styles.label}>Shop Name</Text>
           <TextInput
@@ -283,4 +345,23 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.4 },
   submitBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: '#0A0A0F' },
+  verifyCard: {
+    backgroundColor: Colors.dark.primaryDim,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 170, 0.3)',
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+  },
+  verifyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  verifyTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, color: Colors.dark.text },
+  verifyText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.dark.textSecondary, marginTop: 2, lineHeight: 17 },
+  verifyBtn: {
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  verifyBtnText: { fontFamily: 'Inter_700Bold', fontSize: 14, color: '#0A0A0F' },
+  verifyRefresh: { fontFamily: 'Inter_500Medium', fontSize: 13, color: Colors.dark.primary, textDecorationLine: 'underline' },
 });

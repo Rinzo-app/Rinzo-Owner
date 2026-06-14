@@ -38,9 +38,14 @@ function EmailVerifyBanner() {
     try {
       await resendVerification();
       setState('sent');
-    } catch {
+    } catch (e: any) {
       setState('idle');
-      Alert.alert("Couldn't send", 'Please try again in a moment.');
+      Alert.alert(
+        "Couldn't send",
+        e?.code === 'auth/too-many-requests'
+          ? 'Too many attempts. Wait a few minutes — an email may already be in your inbox (check spam).'
+          : 'Please try again in a moment.',
+      );
     }
   };
 
