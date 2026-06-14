@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +20,7 @@ import { useAuth } from '@/lib/auth-context';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, error, clearError, isLoading } = useAuth();
+  const { signIn, signUp, resetPassword, error, clearError, isLoading } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -29,6 +30,26 @@ export default function LoginScreen() {
   const [localLoading, setLocalLoading] = useState(false);
 
   const isSignup = mode === 'signup';
+
+  const handleForgotPassword = async () => {
+    const e = email.trim();
+    if (e.length < 4 || !e.includes('@')) {
+      Alert.alert('Enter your email', 'Type your email above, then tap “Forgot password?”.');
+      return;
+    }
+    try {
+      await resetPassword(e);
+    } catch (err: any) {
+      if (err?.code === 'auth/invalid-email') {
+        Alert.alert('Invalid email', 'Please enter a valid email address.');
+        return;
+      }
+    }
+    Alert.alert(
+      'Check your email',
+      `If an account exists for ${e}, we've sent a password-reset link. Check spam too.`,
+    );
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -171,6 +192,12 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
+          {!isSignup && (
+            <Pressable onPress={handleForgotPassword} disabled={isSubmitting} hitSlop={8}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+          )}
+
           <Pressable
             onPress={() => { setMode(isSignup ? 'signin' : 'signup'); clearError(); }}
             disabled={isSubmitting}
@@ -301,6 +328,13 @@ const styles = StyleSheet.create({
     color: Colors.dark.primary,
     textAlign: 'center',
     marginTop: 10,
+  },
+  forgotText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.dark.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
   },
   footerSection: {
     marginTop: 40,
